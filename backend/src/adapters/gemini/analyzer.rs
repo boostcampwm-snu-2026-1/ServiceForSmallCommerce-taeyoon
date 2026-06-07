@@ -7,8 +7,9 @@ use crate::domain::ports::ai_analyzer::AiAnalyzer;
 use crate::domain::ports::crawler::ProductReviews;
 use crate::error::{AppError, AppResult};
 
-/// 기본 Gemini 모델. 현재 지원 모델 중 최저가(gemini-2.0-flash-lite).
-pub const DEFAULT_MODEL: &str = "gemini-2.0-flash-lite";
+/// 기본 Gemini 모델. 제공된 키의 free tier 에서 호출 가능한 모델(gemini-2.5-flash).
+/// 참고: gemini-2.0-flash-lite 는 해당 키에서 free tier 쿼터가 0이라 사용 불가.
+pub const DEFAULT_MODEL: &str = "gemini-2.5-flash";
 
 /// 테스트/개발용 결정론적 분석기.
 ///
@@ -361,9 +362,9 @@ mod tests {
     #[test]
     fn endpoint_includes_model_name() {
         let analyzer =
-            GeminiAiAnalyzer::new(reqwest::Client::new(), "key".into(), "gemini-2.0-flash-lite".into());
+            GeminiAiAnalyzer::new(reqwest::Client::new(), "key".into(), "gemini-2.5-flash".into());
         let url = analyzer.endpoint();
         assert!(url.contains("generativelanguage.googleapis.com"));
-        assert!(url.contains("models/gemini-2.0-flash-lite:generateContent"));
+        assert!(url.contains("models/gemini-2.5-flash:generateContent"));
     }
 }

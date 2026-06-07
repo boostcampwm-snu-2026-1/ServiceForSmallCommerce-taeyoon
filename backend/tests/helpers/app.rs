@@ -84,7 +84,7 @@ impl TestApp {
             jwt_expires_in: 86400,
             server_port: 0,
             gemini_api_key: None,
-            gemini_model: "gemini-2.0-flash-lite".to_string(),
+            gemini_model: "gemini-2.5-flash".to_string(),
         };
 
         let user_repo: Arc<dyn UserRepository> = Arc::new(PgUserRepository::new(db_pool.clone()));
