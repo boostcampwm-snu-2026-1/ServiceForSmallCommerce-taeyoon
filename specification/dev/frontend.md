@@ -10,7 +10,7 @@
 frontend/
 ├── app/                        # Next.js App Router
 │   ├── layout.tsx              # 루트 레이아웃 (QueryProvider, 토스트)
-│   ├── page.tsx                # 랜딩 페이지 (로그인하지 않은 사용자)
+│   ├── page.tsx                # 루트: 인증 상태 기반 리다이렉트 (→ /login | /dashboard)
 │   ├── (auth)/
 │   │   ├── login/page.tsx
 │   │   └── register/page.tsx
@@ -52,9 +52,11 @@ frontend/
 
 ## 페이지 구성
 
-### 랜딩 (`/`)
-- 서비스 소개
-- 로그인/회원가입 CTA
+### 루트 (`/`)
+- 별도 랜딩 화면 없음(옵션 1). 인증 상태 기반 리다이렉트만 수행:
+  - 로그인 상태(토큰 보유) → `/dashboard`
+  - 비로그인 → `/login`
+- 하이드레이션 미스매치 방지를 위해 mount 이후에만 `router.replace`
 
 ### 대시보드 (`/dashboard`)
 - URL 입력 폼 (최대 3개 URL, 리뷰 수 설정)
