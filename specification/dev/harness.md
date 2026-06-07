@@ -13,7 +13,7 @@
 통합 테스트 (cargo test --tests / vitest)
     └─ TestApp + testcontainers PostgreSQL
     └─ HTTP 요청 → DB 저장 → 응답 전체 흐름
-    └─ 크롤러/Claude API는 Mock Adapter 사용
+    └─ 크롤러/Gemini API는 Mock Adapter 사용
 
 E2E (Playwright)
     └─ 실제 브라우저 + 실제 서버

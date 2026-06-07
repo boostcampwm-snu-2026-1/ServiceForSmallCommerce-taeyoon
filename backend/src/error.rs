@@ -22,6 +22,21 @@ pub enum AppError {
     Internal(#[from] anyhow::Error),
 }
 
+impl AppError {
+    /// 내부 진단용 상세 메시지.
+    ///
+    /// 사용자 응답(`Display`)은 `Internal`/`Database` 의 원인을 숨기지만,
+    /// 로그·분석 실패 기록(DB `error` 컬럼)에는 실제 원인이 필요하다.
+    /// 따라서 여기서는 내부 anyhow(`{:#}` 전체 체인)/sqlx 메시지를 노출한다.
+    pub fn detail(&self) -> String {
+        match self {
+            AppError::Internal(e) => format!("{e:#}"),
+            AppError::Database(e) => format!("Database error: {e}"),
+            other => other.to_string(),
+        }
+    }
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match &self {

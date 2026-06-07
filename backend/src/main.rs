@@ -1,10 +1,21 @@
 use anyhow::Result;
 use coupang_review_ai_backend::{
+    adapters::gemini::{GeminiAiAnalyzer, MockAiAnalyzer},
+    adapters::coupang::{HttpCoupangCrawler, MockCoupangCrawler},
+    adapters::postgres::{analysis_repo::PgAnalysisRepository, user_repo::PgUserRepository},
+    application::analysis_service::{AnalysisService, StandardAnalysisService},
+    application::auth_service::{AuthService, StandardAuthService},
+    application::user_service::{StandardUserService, UserService},
     config::Config,
+    domain::ports::ai_analyzer::AiAnalyzer,
+    domain::ports::analysis_repository::AnalysisRepository,
+    domain::ports::crawler::CoupangCrawler,
+    domain::ports::user_repository::UserRepository,
     http::{router::build_router, state::AppState},
 };
 use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
+use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -28,7 +39,61 @@ async fn main() -> Result<()> {
 
     sqlx::migrate!("./migrations").run(&db_pool).await?;
 
-    let state = AppState::new(db_pool, config);
+    let user_repo: Arc<dyn UserRepository> = Arc::new(PgUserRepository::new(db_pool.clone()));
+    let analysis_repo: Arc<dyn AnalysisRepository> =
+        Arc::new(PgAnalysisRepository::new(db_pool.clone()));
+
+    let auth_service: Arc<dyn AuthService> = Arc::new(StandardAuthService::new(
+        Arc::clone(&user_repo),
+        config.jwt_secret.clone(),
+        config.jwt_expires_in,
+    ));
+
+    let crawler: Arc<dyn CoupangCrawler> = match config.crawler_mode.as_str() {
+        "mock" => {
+            tracing::warn!("CRAWLER_MODE=mock → MockCoupangCrawler 사용(픽스처 리뷰)");
+            Arc::new(MockCoupangCrawler::new())
+        }
+        _ => {
+            if config.coupang_proxy_url.is_some() {
+                tracing::info!("HttpCoupangCrawler: 스크래핑 프록시 경유");
+            }
+            Arc::new(HttpCoupangCrawler::new(
+                reqwest::Client::new(),
+                config.coupang_proxy_url.clone(),
+            ))
+        }
+    };
+
+    let analyzer: Arc<dyn AiAnalyzer> = match &config.gemini_api_key {
+        Some(key) => Arc::new(GeminiAiAnalyzer::new(
+            reqwest::Client::new(),
+            key.clone(),
+            config.gemini_model.clone(),
+        )),
+        None => {
+            tracing::warn!("GEMINI_API_KEY 미설정 → MockAiAnalyzer 사용");
+            Arc::new(MockAiAnalyzer::new())
+        }
+    };
+
+    let analysis_service: Arc<dyn AnalysisService> = Arc::new(StandardAnalysisService::new(
+        Arc::clone(&analysis_repo),
+        crawler,
+        analyzer,
+    ));
+    let user_service: Arc<dyn UserService> = Arc::new(StandardUserService::new(
+        Arc::clone(&user_repo),
+        Arc::clone(&analysis_repo),
+    ));
+
+    let state = AppState::new(
+        db_pool,
+        config,
+        auth_service,
+        analysis_service,
+        user_service,
+    );
     let app = build_router(state);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;

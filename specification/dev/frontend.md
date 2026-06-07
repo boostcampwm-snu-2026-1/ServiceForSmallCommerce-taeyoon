@@ -10,7 +10,7 @@
 frontend/
 ├── app/                        # Next.js App Router
 │   ├── layout.tsx              # 루트 레이아웃 (QueryProvider, 토스트)
-│   ├── page.tsx                # 랜딩 페이지 (로그인하지 않은 사용자)
+│   ├── page.tsx                # 루트: 인증 상태 기반 리다이렉트 (→ /login | /dashboard)
 │   ├── (auth)/
 │   │   ├── login/page.tsx
 │   │   └── register/page.tsx
@@ -52,9 +52,11 @@ frontend/
 
 ## 페이지 구성
 
-### 랜딩 (`/`)
-- 서비스 소개
-- 로그인/회원가입 CTA
+### 루트 (`/`)
+- 별도 랜딩 화면 없음(옵션 1). 인증 상태 기반 리다이렉트만 수행:
+  - 로그인 상태(토큰 보유) → `/dashboard`
+  - 비로그인 → `/login`
+- 하이드레이션 미스매치 방지를 위해 mount 이후에만 `router.replace`
 
 ### 대시보드 (`/dashboard`)
 - URL 입력 폼 (최대 3개 URL, 리뷰 수 설정)
@@ -91,15 +93,24 @@ interface AuthStore {
 }
 ```
 
-### 분석 폴링 (TanStack Query)
+### 분석 폴링 (TanStack Query v5)
+`src/features/analysis/hooks/useAnalysisPolling.ts` 로 추출. v5 에서 `refetchInterval`
+콜백 인자는 `query` 객체이며 `query.state.data` 로 접근한다. 간격 분기는 순수 함수
+`pollInterval(status)` 로 분리해 단위 테스트한다.
 ```typescript
-// status가 completed/failed가 아닐 때만 폴링
-useQuery({
-  queryKey: ['analysis', id],
-  queryFn: () => getAnalysis(id),
-  refetchInterval: (data) =>
-    data?.status === 'completed' || data?.status === 'failed' ? false : 2000,
-})
+// completed/failed면 폴링 중단(false), 그 외 2초
+export function pollInterval(status?: AnalysisStatus): number | false {
+  return status === 'completed' || status === 'failed' ? false : 2000;
+}
+
+export function useAnalysisPolling(analysisId: string) {
+  return useQuery({
+    queryKey: ['analysis', analysisId],
+    queryFn: () => getAnalysis(analysisId),
+    refetchInterval: (query) => pollInterval(query.state.data?.status),
+    enabled: !!analysisId,
+  });
+}
 ```
 
 ---

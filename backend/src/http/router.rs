@@ -1,10 +1,10 @@
 use axum::{
-    routing::{get, MethodRouter},
+    routing::{get, post, MethodRouter},
     Router,
 };
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
-use crate::http::handlers::health;
+use crate::http::handlers::{analysis, auth, health, user};
 use crate::http::state::AppState;
 
 /// 전체 API 라우트 테이블.
@@ -15,9 +15,14 @@ use crate::http::state::AppState;
 fn route_table() -> Vec<(&'static str, MethodRouter<AppState>)> {
     vec![
         ("/health", get(health::health_check)),
-        // 새 엔드포인트는 여기에 추가:
-        // ("/api/v1/analyses", get(analysis::list_analyses).post(analysis::create_analysis)),
-        // ("/api/v1/analyses/:id", get(analysis::get_analysis)),
+        ("/api/v1/auth/register", post(auth::register)),
+        ("/api/v1/auth/login", post(auth::login)),
+        (
+            "/api/v1/analyses",
+            post(analysis::create_analysis).get(analysis::list_analyses),
+        ),
+        ("/api/v1/analyses/:id", get(analysis::get_analysis)),
+        ("/api/v1/users/me", get(user::get_me)),
     ]
 }
 

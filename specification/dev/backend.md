@@ -40,7 +40,7 @@ backend/src/
 │   ├── coupang/               # 쿠팡 리뷰 크롤러
 │   │   ├── mod.rs
 │   │   └── crawler.rs
-│   └── claude/                # Claude AI 분석
+│   └── gemini/                # Gemini AI 분석
 │       ├── mod.rs
 │       └── analyzer.rs
 │
@@ -64,7 +64,7 @@ backend/src/
 |--------|------|------------|
 | `domain/` | 엔티티 + Port trait 정의 | 없음 |
 | `application/` | 비즈니스 로직, Port 사용 | domain만 |
-| `adapters/` | Port 구현체 (DB, 크롤러, AI) | sqlx, reqwest, Claude SDK |
+| `adapters/` | Port 구현체 (DB, 크롤러, AI) | sqlx, reqwest, Gemini API |
 | `http/` | Axum 핸들러, AppState, 라우터 | axum, application |
 
 ---
@@ -156,20 +156,31 @@ GET /analyses/:id (프론트엔드 폴링)
 
 ## 크롤러 전략
 
-- 쿠팡 내부 리뷰 JSON API: `https://www.coupang.com/vp/product/reviews?productId=...`
-- User-Agent 설정 필수
-- 요청 간 랜덤 딜레이 (500ms ~ 2s)
-- 최대 재시도 3회
-- Port trait `CoupangCrawler`로 격리 → 테스트 시 Mock 데이터 사용
+- 쿠팡 리뷰 JSON API: `https://www.coupang.com/next-api/review?productId=...&page=1&size=N&sortBy=ORDER_SCORE_ASC&ratingSummary=true`
+- 실제 브라우저 헤더(User-Agent, Referer, Accept, Accept-Language, sec-fetch-*) 설정
+- 응답 status 검사 → 실패 시 상태코드+본문 스니펫을 에러로 전파(진단 가능)
+- 파싱: 알려진 키 + 재귀 탐색으로 리뷰 배열/상품명 발견(스키마 변경 방어)
+- Port trait `CoupangCrawler`로 격리 → 테스트/데모 시 Mock 데이터 사용
+
+### anti-bot 한계와 운영 방식
+
+- 쿠팡은 Akamai Bot Manager 로 보호됨. **데이터센터 IP 는 IP 단에서 403(Access Denied)** → 헤더/쿠키 트릭으로 우회 불가(검증됨).
+- sensor 스푸핑/프록시 로테이션 자체 구현은 하지 않음(취약 + ToS/법적 리스크).
+- 안정적 수집 경로(택1):
+  - `COUPANG_PROXY_URL`: 스크래핑 API(ScraperAPI/ZenRows 등) 경유. `{url}` 치환, anti-bot/IP 로테이션을 벤더가 처리.
+  - 가정용 IP/헤드리스 환경에서 실행.
+- 로컬 전체 플로우 데모: `CRAWLER_MODE=mock`(픽스처 리뷰) + 실제 Gemini 분석.
+- 실패 원인은 DB `analyses.error`(`AppError::detail()`)와 서버 로그(`tracing::error!`)로 노출.
 
 ---
 
-## Claude API 분석 프롬프트 전략
+## Gemini API 분석 프롬프트 전략
 
+- 엔드포인트: `POST generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` (인증: `x-goog-api-key` 헤더)
 - 리뷰 배치 처리 (100개씩 분할)
 - 한국어 프롬프트
-- 구조화된 JSON 출력 요청
-- 모델: claude-sonnet-4-6
+- 구조화된 JSON 출력 요청 (`generationConfig.responseMimeType = application/json`)
+- 모델: gemini-2.5-flash (free tier 호출 가능, env `GEMINI_MODEL` 로 override, `GEMINI_API_KEY` 미설정 시 MockAiAnalyzer 폴백)
 
 ---
 
@@ -177,5 +188,5 @@ GET /analyses/:id (프론트엔드 폴링)
 
 - `testcontainers`: `cargo test` 실행 시 PostgreSQL 컨테이너 자동 관리
 - `TestApp`: 격리된 test_\<uuid\> DB + 랜덤 포트 서버
-- 크롤러/Claude API: Mock Adapter 주입
+- 크롤러/Gemini API: Mock Adapter 주입
 - 상세: `specification/dev/harness.md`
