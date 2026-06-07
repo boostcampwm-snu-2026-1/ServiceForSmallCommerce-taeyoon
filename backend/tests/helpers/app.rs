@@ -1,7 +1,10 @@
+use coupang_review_ai_backend::adapters::postgres::user_repo::PgUserRepository;
+use coupang_review_ai_backend::application::auth_service::{AuthService, StandardAuthService};
 use coupang_review_ai_backend::config::Config;
 use coupang_review_ai_backend::http::{router::build_router, state::AppState};
 use sqlx::{postgres::PgPoolOptions, Connection, Executor, PgConnection, PgPool};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use testcontainers_modules::{
     postgres::Postgres,
     testcontainers::{runners::AsyncRunner, ContainerAsync},
@@ -71,7 +74,14 @@ impl TestApp {
             server_port: 0,
         };
 
-        let state = AppState::new(db_pool.clone(), config);
+        let user_repo = Arc::new(PgUserRepository::new(db_pool.clone()));
+        let auth_service: Arc<dyn AuthService> = Arc::new(StandardAuthService::new(
+            user_repo,
+            config.jwt_secret.clone(),
+            config.jwt_expires_in,
+        ));
+
+        let state = AppState::new(db_pool.clone(), config, auth_service);
         let app = build_router(state);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -89,6 +99,17 @@ impl TestApp {
             db_name,
             admin_db_url,
         }
+    }
+
+    /// register 엔드포인트 호출 헬퍼. 응답을 그대로 반환한다.
+    #[allow(dead_code)]
+    pub async fn register(&self, email: &str, password: &str) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(format!("{}/api/v1/auth/register", self.address))
+            .json(&serde_json::json!({ "email": email, "password": password }))
+            .send()
+            .await
+            .expect("register request failed")
     }
 }
 
