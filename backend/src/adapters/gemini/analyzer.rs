@@ -7,8 +7,8 @@ use crate::domain::ports::ai_analyzer::AiAnalyzer;
 use crate::domain::ports::crawler::ProductReviews;
 use crate::error::{AppError, AppResult};
 
-/// 기본 Claude 모델.
-pub const DEFAULT_MODEL: &str = "claude-sonnet-4-6";
+/// 기본 Gemini 모델.
+pub const DEFAULT_MODEL: &str = "gemini-2.5-flash";
 
 /// 테스트/개발용 결정론적 분석기.
 ///
@@ -111,18 +111,18 @@ impl AiAnalyzer for MockAiAnalyzer {
     }
 }
 
-/// Claude Messages API 기반 분석기.
+/// Google Gemini `generateContent` API 기반 분석기.
 ///
 /// 주의: 모델 출력은 자유 텍스트일 수 있어 `parse_insights` 는 방어적으로 작성되어 있다
-/// (코드펜스 제거, 첫 `{` ~ 마지막 `}` 구간 추출 후 파싱). 실제 운영 시 프롬프트와
-/// 파싱을 함께 보정해야 한다. 네트워크 호출은 테스트하지 않는다.
-pub struct ClaudeAiAnalyzer {
+/// (코드펜스 제거, 첫 `{` ~ 마지막 `}` 구간 추출 후 파싱). `responseMimeType` 으로 JSON 을
+/// 강제하지만, 안전을 위해 파싱은 그대로 방어적으로 유지한다. 네트워크 호출은 테스트하지 않는다.
+pub struct GeminiAiAnalyzer {
     client: reqwest::Client,
     api_key: String,
     model: String,
 }
 
-impl ClaudeAiAnalyzer {
+impl GeminiAiAnalyzer {
     pub fn new(client: reqwest::Client, api_key: String, model: String) -> Self {
         let model = if model.trim().is_empty() {
             DEFAULT_MODEL.to_string()
@@ -134,6 +134,14 @@ impl ClaudeAiAnalyzer {
             api_key,
             model,
         }
+    }
+
+    /// `generateContent` 엔드포인트 URL 을 만든다.
+    fn endpoint(&self) -> String {
+        format!(
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+            self.model
+        )
     }
 
     /// 리뷰들을 포함한 한국어 구조화 JSON 출력 요청 프롬프트를 만든다.
@@ -184,21 +192,24 @@ impl ClaudeAiAnalyzer {
 }
 
 #[async_trait]
-impl AiAnalyzer for ClaudeAiAnalyzer {
+impl AiAnalyzer for GeminiAiAnalyzer {
     async fn analyze(&self, products: &[ProductReviews]) -> AppResult<Insights> {
         let prompt = Self::build_prompt(products);
 
         let body = serde_json::json!({
-            "model": self.model,
-            "max_tokens": 4096,
-            "messages": [{ "role": "user", "content": prompt }],
+            "contents": [{
+                "parts": [{ "text": prompt }],
+            }],
+            "generationConfig": {
+                "maxOutputTokens": 4096,
+                "responseMimeType": "application/json",
+            },
         });
 
         let resp = self
             .client
-            .post("https://api.anthropic.com/v1/messages")
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", "2023-06-01")
+            .post(self.endpoint())
+            .header("x-goog-api-key", &self.api_key)
             .header("content-type", "application/json")
             .json(&body)
             .send()
@@ -210,14 +221,18 @@ impl AiAnalyzer for ClaudeAiAnalyzer {
             .await
             .map_err(|e| AppError::Internal(e.into()))?;
 
-        // Messages API: content[0].text
+        // generateContent: candidates[0].content.parts[0].text
         let text = json
-            .get("content")
+            .get("candidates")
             .and_then(|c| c.as_array())
             .and_then(|arr| arr.first())
-            .and_then(|block| block.get("text"))
+            .and_then(|cand| cand.get("content"))
+            .and_then(|content| content.get("parts"))
+            .and_then(|parts| parts.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|part| part.get("text"))
             .and_then(|t| t.as_str())
-            .ok_or_else(|| AppError::Internal(anyhow::anyhow!("Claude 응답 형식이 예상과 다름")))?;
+            .ok_or_else(|| AppError::Internal(anyhow::anyhow!("Gemini 응답 형식이 예상과 다름")))?;
 
         Self::parse_insights(text)
     }
@@ -303,7 +318,7 @@ mod tests {
             "competitor_weaknesses": [{"title": "AS", "opportunity": "빠른 CS"}],
             "purchase_drivers": ["가격"]
         }"#;
-        let insights = ClaudeAiAnalyzer::parse_insights(text).unwrap();
+        let insights = GeminiAiAnalyzer::parse_insights(text).unwrap();
         assert_eq!(insights.top_complaints[0].text, "포장");
         assert_eq!(insights.top_positives[0].count, 5);
         assert_eq!(insights.purchase_drivers, vec!["가격"]);
@@ -315,21 +330,21 @@ mod tests {
             \"top_complaints\": [], \"top_positives\": [], \
             \"improvement_points\": [], \"competitor_weaknesses\": [], \
             \"purchase_drivers\": []}\n```\n감사합니다.";
-        let insights = ClaudeAiAnalyzer::parse_insights(text).unwrap();
+        let insights = GeminiAiAnalyzer::parse_insights(text).unwrap();
         assert!(insights.top_complaints.is_empty());
         assert!(insights.purchase_drivers.is_empty());
     }
 
     #[test]
     fn parse_insights_fails_without_json() {
-        let err = ClaudeAiAnalyzer::parse_insights("JSON 없음").unwrap_err();
+        let err = GeminiAiAnalyzer::parse_insights("JSON 없음").unwrap_err();
         assert!(matches!(err, AppError::Internal(_)));
     }
 
     #[test]
     fn build_prompt_includes_review_text() {
         let products = vec![product(vec![("배송이 빠르다", 5), ("포장이 허술하다", 1)])];
-        let prompt = ClaudeAiAnalyzer::build_prompt(&products);
+        let prompt = GeminiAiAnalyzer::build_prompt(&products);
         assert!(prompt.contains("배송이 빠르다"));
         assert!(prompt.contains("포장이 허술하다"));
         assert!(prompt.contains("테스트 상품"));
@@ -338,8 +353,17 @@ mod tests {
 
     #[test]
     fn new_uses_default_model_when_empty() {
-        let analyzer = ClaudeAiAnalyzer::new(reqwest::Client::new(), "key".into(), "".into());
+        let analyzer = GeminiAiAnalyzer::new(reqwest::Client::new(), "key".into(), "".into());
         assert_eq!(analyzer.model, DEFAULT_MODEL);
         assert_eq!(analyzer.api_key, "key");
+    }
+
+    #[test]
+    fn endpoint_includes_model_name() {
+        let analyzer =
+            GeminiAiAnalyzer::new(reqwest::Client::new(), "key".into(), "gemini-2.5-flash".into());
+        let url = analyzer.endpoint();
+        assert!(url.contains("generativelanguage.googleapis.com"));
+        assert!(url.contains("models/gemini-2.5-flash:generateContent"));
     }
 }

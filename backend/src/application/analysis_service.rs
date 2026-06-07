@@ -200,7 +200,7 @@ impl AnalysisService for StandardAnalysisService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adapters::claude::MockAiAnalyzer;
+    use crate::adapters::gemini::MockAiAnalyzer;
     use crate::adapters::coupang::MockCoupangCrawler;
     use crate::domain::models::{Analysis, Review};
     use chrono::Utc;

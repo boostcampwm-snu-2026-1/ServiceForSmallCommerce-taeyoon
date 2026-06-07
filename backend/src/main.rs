@@ -1,6 +1,6 @@
 use anyhow::Result;
 use coupang_review_ai_backend::{
-    adapters::claude::{ClaudeAiAnalyzer, MockAiAnalyzer},
+    adapters::gemini::{GeminiAiAnalyzer, MockAiAnalyzer},
     adapters::coupang::HttpCoupangCrawler,
     adapters::postgres::{analysis_repo::PgAnalysisRepository, user_repo::PgUserRepository},
     application::analysis_service::{AnalysisService, StandardAnalysisService},
@@ -52,14 +52,14 @@ async fn main() -> Result<()> {
     let crawler: Arc<dyn CoupangCrawler> =
         Arc::new(HttpCoupangCrawler::new(reqwest::Client::new()));
 
-    let analyzer: Arc<dyn AiAnalyzer> = match &config.claude_api_key {
-        Some(key) => Arc::new(ClaudeAiAnalyzer::new(
+    let analyzer: Arc<dyn AiAnalyzer> = match &config.gemini_api_key {
+        Some(key) => Arc::new(GeminiAiAnalyzer::new(
             reqwest::Client::new(),
             key.clone(),
-            config.claude_model.clone(),
+            config.gemini_model.clone(),
         )),
         None => {
-            tracing::warn!("CLAUDE_API_KEY 미설정 → MockAiAnalyzer 사용");
+            tracing::warn!("GEMINI_API_KEY 미설정 → MockAiAnalyzer 사용");
             Arc::new(MockAiAnalyzer::new())
         }
     };

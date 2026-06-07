@@ -40,7 +40,7 @@ backend/src/
 │   ├── coupang/               # 쿠팡 리뷰 크롤러
 │   │   ├── mod.rs
 │   │   └── crawler.rs
-│   └── claude/                # Claude AI 분석
+│   └── gemini/                # Gemini AI 분석
 │       ├── mod.rs
 │       └── analyzer.rs
 │
@@ -64,7 +64,7 @@ backend/src/
 |--------|------|------------|
 | `domain/` | 엔티티 + Port trait 정의 | 없음 |
 | `application/` | 비즈니스 로직, Port 사용 | domain만 |
-| `adapters/` | Port 구현체 (DB, 크롤러, AI) | sqlx, reqwest, Claude SDK |
+| `adapters/` | Port 구현체 (DB, 크롤러, AI) | sqlx, reqwest, Gemini API |
 | `http/` | Axum 핸들러, AppState, 라우터 | axum, application |
 
 ---
@@ -164,12 +164,13 @@ GET /analyses/:id (프론트엔드 폴링)
 
 ---
 
-## Claude API 분석 프롬프트 전략
+## Gemini API 분석 프롬프트 전략
 
+- 엔드포인트: `POST generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` (인증: `x-goog-api-key` 헤더)
 - 리뷰 배치 처리 (100개씩 분할)
 - 한국어 프롬프트
-- 구조화된 JSON 출력 요청
-- 모델: claude-sonnet-4-6
+- 구조화된 JSON 출력 요청 (`generationConfig.responseMimeType = application/json`)
+- 모델: gemini-2.5-flash (env `GEMINI_MODEL` 로 override, `GEMINI_API_KEY` 미설정 시 MockAiAnalyzer 폴백)
 
 ---
 
@@ -177,5 +178,5 @@ GET /analyses/:id (프론트엔드 폴링)
 
 - `testcontainers`: `cargo test` 실행 시 PostgreSQL 컨테이너 자동 관리
 - `TestApp`: 격리된 test_\<uuid\> DB + 랜덤 포트 서버
-- 크롤러/Claude API: Mock Adapter 주입
+- 크롤러/Gemini API: Mock Adapter 주입
 - 상세: `specification/dev/harness.md`

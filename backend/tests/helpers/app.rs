@@ -1,4 +1,4 @@
-use coupang_review_ai_backend::adapters::claude::MockAiAnalyzer;
+use coupang_review_ai_backend::adapters::gemini::MockAiAnalyzer;
 use coupang_review_ai_backend::adapters::coupang::MockCoupangCrawler;
 use coupang_review_ai_backend::adapters::postgres::analysis_repo::PgAnalysisRepository;
 use coupang_review_ai_backend::adapters::postgres::user_repo::PgUserRepository;
@@ -83,8 +83,8 @@ impl TestApp {
             jwt_secret: "test-secret-key".to_string(),
             jwt_expires_in: 86400,
             server_port: 0,
-            claude_api_key: None,
-            claude_model: "claude-sonnet-4-6".to_string(),
+            gemini_api_key: None,
+            gemini_model: "gemini-2.5-flash".to_string(),
         };
 
         let user_repo: Arc<dyn UserRepository> = Arc::new(PgUserRepository::new(db_pool.clone()));
