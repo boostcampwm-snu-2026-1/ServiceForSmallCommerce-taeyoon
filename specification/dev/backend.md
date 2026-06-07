@@ -156,11 +156,21 @@ GET /analyses/:id (프론트엔드 폴링)
 
 ## 크롤러 전략
 
-- 쿠팡 내부 리뷰 JSON API: `https://www.coupang.com/vp/product/reviews?productId=...`
-- User-Agent 설정 필수
-- 요청 간 랜덤 딜레이 (500ms ~ 2s)
-- 최대 재시도 3회
-- Port trait `CoupangCrawler`로 격리 → 테스트 시 Mock 데이터 사용
+- 쿠팡 리뷰 JSON API: `https://www.coupang.com/next-api/review?productId=...&page=1&size=N&sortBy=ORDER_SCORE_ASC&ratingSummary=true`
+- 실제 브라우저 헤더(User-Agent, Referer, Accept, Accept-Language, sec-fetch-*) 설정
+- 응답 status 검사 → 실패 시 상태코드+본문 스니펫을 에러로 전파(진단 가능)
+- 파싱: 알려진 키 + 재귀 탐색으로 리뷰 배열/상품명 발견(스키마 변경 방어)
+- Port trait `CoupangCrawler`로 격리 → 테스트/데모 시 Mock 데이터 사용
+
+### anti-bot 한계와 운영 방식
+
+- 쿠팡은 Akamai Bot Manager 로 보호됨. **데이터센터 IP 는 IP 단에서 403(Access Denied)** → 헤더/쿠키 트릭으로 우회 불가(검증됨).
+- sensor 스푸핑/프록시 로테이션 자체 구현은 하지 않음(취약 + ToS/법적 리스크).
+- 안정적 수집 경로(택1):
+  - `COUPANG_PROXY_URL`: 스크래핑 API(ScraperAPI/ZenRows 등) 경유. `{url}` 치환, anti-bot/IP 로테이션을 벤더가 처리.
+  - 가정용 IP/헤드리스 환경에서 실행.
+- 로컬 전체 플로우 데모: `CRAWLER_MODE=mock`(픽스처 리뷰) + 실제 Gemini 분석.
+- 실패 원인은 DB `analyses.error`(`AppError::detail()`)와 서버 로그(`tracing::error!`)로 노출.
 
 ---
 

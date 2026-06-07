@@ -70,7 +70,7 @@ impl StandardAnalysisService {
         // 1. crawling
         if let Err(e) = repo.update_status(id, AnalysisStatus::Crawling).await {
             // 상태 갱신 실패는 더 진행해도 의미가 없으므로 에러 기록 후 종료.
-            let _ = repo.set_error(id, &e.to_string()).await;
+            let _ = repo.set_error(id, &e.detail()).await;
             return;
         }
 
@@ -80,7 +80,8 @@ impl StandardAnalysisService {
             match crawler.fetch_reviews(url, review_limit as u32).await {
                 Ok(pr) => product_reviews.push(pr),
                 Err(e) => {
-                    let _ = repo.set_error(id, &e.to_string()).await;
+                    tracing::error!(analysis_id = %id, url = %url, error = %e.detail(), "크롤링 실패");
+                    let _ = repo.set_error(id, &e.detail()).await;
                     return;
                 }
             }
@@ -94,7 +95,7 @@ impl StandardAnalysisService {
 
         // 4. analyzing
         if let Err(e) = repo.update_status(id, AnalysisStatus::Analyzing).await {
-            let _ = repo.set_error(id, &e.to_string()).await;
+            let _ = repo.set_error(id, &e.detail()).await;
             return;
         }
 
@@ -102,7 +103,8 @@ impl StandardAnalysisService {
         let insights = match analyzer.analyze(&product_reviews).await {
             Ok(i) => i,
             Err(e) => {
-                let _ = repo.set_error(id, &e.to_string()).await;
+                tracing::error!(analysis_id = %id, error = %e.detail(), "AI 분석 실패");
+                let _ = repo.set_error(id, &e.detail()).await;
                 return;
             }
         };
@@ -110,7 +112,7 @@ impl StandardAnalysisService {
         // 6. 결과 저장
         let result = AnalysisResult { products, insights };
         if let Err(e) = repo.set_result(id, &result).await {
-            let _ = repo.set_error(id, &e.to_string()).await;
+            let _ = repo.set_error(id, &e.detail()).await;
         }
     }
 

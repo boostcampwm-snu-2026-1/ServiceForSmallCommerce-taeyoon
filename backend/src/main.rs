@@ -1,7 +1,7 @@
 use anyhow::Result;
 use coupang_review_ai_backend::{
     adapters::gemini::{GeminiAiAnalyzer, MockAiAnalyzer},
-    adapters::coupang::HttpCoupangCrawler,
+    adapters::coupang::{HttpCoupangCrawler, MockCoupangCrawler},
     adapters::postgres::{analysis_repo::PgAnalysisRepository, user_repo::PgUserRepository},
     application::analysis_service::{AnalysisService, StandardAnalysisService},
     application::auth_service::{AuthService, StandardAuthService},
@@ -49,8 +49,21 @@ async fn main() -> Result<()> {
         config.jwt_expires_in,
     ));
 
-    let crawler: Arc<dyn CoupangCrawler> =
-        Arc::new(HttpCoupangCrawler::new(reqwest::Client::new()));
+    let crawler: Arc<dyn CoupangCrawler> = match config.crawler_mode.as_str() {
+        "mock" => {
+            tracing::warn!("CRAWLER_MODE=mock → MockCoupangCrawler 사용(픽스처 리뷰)");
+            Arc::new(MockCoupangCrawler::new())
+        }
+        _ => {
+            if config.coupang_proxy_url.is_some() {
+                tracing::info!("HttpCoupangCrawler: 스크래핑 프록시 경유");
+            }
+            Arc::new(HttpCoupangCrawler::new(
+                reqwest::Client::new(),
+                config.coupang_proxy_url.clone(),
+            ))
+        }
+    };
 
     let analyzer: Arc<dyn AiAnalyzer> = match &config.gemini_api_key {
         Some(key) => Arc::new(GeminiAiAnalyzer::new(

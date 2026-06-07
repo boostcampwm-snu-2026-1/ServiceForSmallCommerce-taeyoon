@@ -85,6 +85,8 @@ impl TestApp {
             server_port: 0,
             gemini_api_key: None,
             gemini_model: "gemini-2.5-flash".to_string(),
+            crawler_mode: "mock".to_string(),
+            coupang_proxy_url: None,
         };
 
         let user_repo: Arc<dyn UserRepository> = Arc::new(PgUserRepository::new(db_pool.clone()));
