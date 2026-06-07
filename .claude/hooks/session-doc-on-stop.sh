@@ -4,6 +4,10 @@ STOP_HOOK_ACTIVE=$(echo "$INPUT" | jq -r '.stop_hook_active // false')
 if [ "$STOP_HOOK_ACTIVE" = "true" ]; then exit 0; fi
 PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 
+# 코드 작업이 있었던 턴에서만 세션 문서를 생성 (마커 게이트).
+# 대화만 한 턴은 무거운 claude --print 호출 없이 즉시 통과.
+[ ! -f "${PROJECT_ROOT}/.claude/.pending-doc-check" ] && exit 0
+
 TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // ""')
 [ -z "$TRANSCRIPT" ] || [ ! -f "$TRANSCRIPT" ] && exit 0
 
