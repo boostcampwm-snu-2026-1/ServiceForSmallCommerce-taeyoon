@@ -170,7 +170,7 @@ GET /analyses/:id (프론트엔드 폴링)
 - 리뷰 배치 처리 (100개씩 분할)
 - 한국어 프롬프트
 - 구조화된 JSON 출력 요청 (`generationConfig.responseMimeType = application/json`)
-- 모델: gemini-2.5-flash (env `GEMINI_MODEL` 로 override, `GEMINI_API_KEY` 미설정 시 MockAiAnalyzer 폴백)
+- 모델: gemini-2.0-flash-lite (현재 지원 모델 중 최저가, env `GEMINI_MODEL` 로 override, `GEMINI_API_KEY` 미설정 시 MockAiAnalyzer 폴백)
 
 ---
 

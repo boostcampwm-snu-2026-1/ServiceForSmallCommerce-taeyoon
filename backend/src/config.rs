@@ -8,7 +8,7 @@ pub struct Config {
     pub server_port: u16,
     /// Gemini API 키. 없으면 Mock 분석기로 폴백한다.
     pub gemini_api_key: Option<String>,
-    /// Gemini 모델명. 기본값 "gemini-2.5-flash".
+    /// Gemini 모델명. 기본값 "gemini-2.0-flash-lite"(최저가).
     pub gemini_model: String,
 }
 
@@ -25,7 +25,7 @@ impl Config {
                 .parse()?,
             gemini_api_key: std::env::var("GEMINI_API_KEY").ok(),
             gemini_model: std::env::var("GEMINI_MODEL")
-                .unwrap_or_else(|_| "gemini-2.5-flash".to_string()),
+                .unwrap_or_else(|_| "gemini-2.0-flash-lite".to_string()),
         })
     }
 }

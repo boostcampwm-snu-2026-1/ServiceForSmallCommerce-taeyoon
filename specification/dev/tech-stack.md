@@ -9,7 +9,7 @@
 | ORM/쿼리 | sqlx 0.7 | 컴파일 타임 SQL 검증. 런타임 ORM 오버헤드 없음 |
 | DB | PostgreSQL 16 | 트랜잭션, JSONB, uuid 네이티브 지원 |
 | 크롤러 | reqwest + scraper | 쿠팡 내부 리뷰 JSON API 직접 호출 |
-| AI 분석 | Gemini API (gemini-2.5-flash) | 한국어 리뷰 분석 품질 + 비용 효율 |
+| AI 분석 | Gemini API (gemini-2.0-flash-lite) | 비용 최저가 + 한국어 리뷰 분석 가능 |
 | 인증 | JWT (jsonwebtoken 9) + argon2 | 업계 표준 |
 
 ## 프론트엔드
