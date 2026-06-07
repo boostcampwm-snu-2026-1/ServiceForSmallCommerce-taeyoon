@@ -1,8 +1,16 @@
 use anyhow::Result;
 use coupang_review_ai_backend::{
-    adapters::postgres::user_repo::PgUserRepository,
+    adapters::claude::{ClaudeAiAnalyzer, MockAiAnalyzer},
+    adapters::coupang::HttpCoupangCrawler,
+    adapters::postgres::{analysis_repo::PgAnalysisRepository, user_repo::PgUserRepository},
+    application::analysis_service::{AnalysisService, StandardAnalysisService},
     application::auth_service::{AuthService, StandardAuthService},
+    application::user_service::{StandardUserService, UserService},
     config::Config,
+    domain::ports::ai_analyzer::AiAnalyzer,
+    domain::ports::analysis_repository::AnalysisRepository,
+    domain::ports::crawler::CoupangCrawler,
+    domain::ports::user_repository::UserRepository,
     http::{router::build_router, state::AppState},
 };
 use dotenvy::dotenv;
@@ -31,14 +39,48 @@ async fn main() -> Result<()> {
 
     sqlx::migrate!("./migrations").run(&db_pool).await?;
 
-    let user_repo = Arc::new(PgUserRepository::new(db_pool.clone()));
+    let user_repo: Arc<dyn UserRepository> = Arc::new(PgUserRepository::new(db_pool.clone()));
+    let analysis_repo: Arc<dyn AnalysisRepository> =
+        Arc::new(PgAnalysisRepository::new(db_pool.clone()));
+
     let auth_service: Arc<dyn AuthService> = Arc::new(StandardAuthService::new(
-        user_repo,
+        Arc::clone(&user_repo),
         config.jwt_secret.clone(),
         config.jwt_expires_in,
     ));
 
-    let state = AppState::new(db_pool, config, auth_service);
+    let crawler: Arc<dyn CoupangCrawler> =
+        Arc::new(HttpCoupangCrawler::new(reqwest::Client::new()));
+
+    let analyzer: Arc<dyn AiAnalyzer> = match &config.claude_api_key {
+        Some(key) => Arc::new(ClaudeAiAnalyzer::new(
+            reqwest::Client::new(),
+            key.clone(),
+            config.claude_model.clone(),
+        )),
+        None => {
+            tracing::warn!("CLAUDE_API_KEY 미설정 → MockAiAnalyzer 사용");
+            Arc::new(MockAiAnalyzer::new())
+        }
+    };
+
+    let analysis_service: Arc<dyn AnalysisService> = Arc::new(StandardAnalysisService::new(
+        Arc::clone(&analysis_repo),
+        crawler,
+        analyzer,
+    ));
+    let user_service: Arc<dyn UserService> = Arc::new(StandardUserService::new(
+        Arc::clone(&user_repo),
+        Arc::clone(&analysis_repo),
+    ));
+
+    let state = AppState::new(
+        db_pool,
+        config,
+        auth_service,
+        analysis_service,
+        user_service,
+    );
     let app = build_router(state);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;

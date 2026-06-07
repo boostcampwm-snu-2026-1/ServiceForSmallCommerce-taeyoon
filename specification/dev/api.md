@@ -177,10 +177,12 @@ PDF 내보내기 (Pro 플랜 전용)
   "plan": "free | starter | pro",
   "usage": {
     "analyses_this_month": 3,
-    "analyses_limit": 3
+    "analyses_limit": null
   }
 }
 ```
+
+> `usage.analyses_limit` 은 `number | null`. 현재는 항상 `null` = 제한 없음(플랜별 제한 강제는 수익 기능으로 보류).
 
 ---
 

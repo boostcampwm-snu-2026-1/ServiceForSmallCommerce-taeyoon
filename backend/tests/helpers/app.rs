@@ -1,6 +1,17 @@
+use coupang_review_ai_backend::adapters::claude::MockAiAnalyzer;
+use coupang_review_ai_backend::adapters::coupang::MockCoupangCrawler;
+use coupang_review_ai_backend::adapters::postgres::analysis_repo::PgAnalysisRepository;
 use coupang_review_ai_backend::adapters::postgres::user_repo::PgUserRepository;
+use coupang_review_ai_backend::application::analysis_service::{
+    AnalysisService, StandardAnalysisService,
+};
 use coupang_review_ai_backend::application::auth_service::{AuthService, StandardAuthService};
+use coupang_review_ai_backend::application::user_service::{StandardUserService, UserService};
 use coupang_review_ai_backend::config::Config;
+use coupang_review_ai_backend::domain::ports::ai_analyzer::AiAnalyzer;
+use coupang_review_ai_backend::domain::ports::analysis_repository::AnalysisRepository;
+use coupang_review_ai_backend::domain::ports::crawler::CoupangCrawler;
+use coupang_review_ai_backend::domain::ports::user_repository::UserRepository;
 use coupang_review_ai_backend::http::{router::build_router, state::AppState};
 use sqlx::{postgres::PgPoolOptions, Connection, Executor, PgConnection, PgPool};
 use std::net::SocketAddr;
@@ -72,16 +83,40 @@ impl TestApp {
             jwt_secret: "test-secret-key".to_string(),
             jwt_expires_in: 86400,
             server_port: 0,
+            claude_api_key: None,
+            claude_model: "claude-sonnet-4-6".to_string(),
         };
 
-        let user_repo = Arc::new(PgUserRepository::new(db_pool.clone()));
+        let user_repo: Arc<dyn UserRepository> = Arc::new(PgUserRepository::new(db_pool.clone()));
+        let analysis_repo: Arc<dyn AnalysisRepository> =
+            Arc::new(PgAnalysisRepository::new(db_pool.clone()));
+
         let auth_service: Arc<dyn AuthService> = Arc::new(StandardAuthService::new(
-            user_repo,
+            Arc::clone(&user_repo),
             config.jwt_secret.clone(),
             config.jwt_expires_in,
         ));
 
-        let state = AppState::new(db_pool.clone(), config, auth_service);
+        // 결정론·무네트워크: Mock 크롤러/분석기 주입.
+        let crawler: Arc<dyn CoupangCrawler> = Arc::new(MockCoupangCrawler::new());
+        let analyzer: Arc<dyn AiAnalyzer> = Arc::new(MockAiAnalyzer::new());
+        let analysis_service: Arc<dyn AnalysisService> = Arc::new(StandardAnalysisService::new(
+            Arc::clone(&analysis_repo),
+            crawler,
+            analyzer,
+        ));
+        let user_service: Arc<dyn UserService> = Arc::new(StandardUserService::new(
+            Arc::clone(&user_repo),
+            Arc::clone(&analysis_repo),
+        ));
+
+        let state = AppState::new(
+            db_pool.clone(),
+            config,
+            auth_service,
+            analysis_service,
+            user_service,
+        );
         let app = build_router(state);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -110,6 +145,18 @@ impl TestApp {
             .send()
             .await
             .expect("register request failed")
+    }
+
+    /// register 후 발급된 JWT 토큰을 반환한다.
+    #[allow(dead_code)]
+    pub async fn register_and_token(&self, email: &str, password: &str) -> String {
+        let res = self.register(email, password).await;
+        assert_eq!(res.status(), 201, "register should succeed");
+        let body: serde_json::Value = res.json().await.unwrap();
+        body["token"]
+            .as_str()
+            .expect("token should exist")
+            .to_string()
     }
 }
 

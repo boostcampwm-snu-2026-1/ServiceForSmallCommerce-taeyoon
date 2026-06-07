@@ -1,4 +1,6 @@
+use crate::application::analysis_service::AnalysisService;
 use crate::application::auth_service::AuthService;
+use crate::application::user_service::UserService;
 use crate::config::Config;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -10,15 +12,24 @@ pub struct AppState {
     pub db_pool: PgPool,
     pub config: Config,
     pub auth_service: Arc<dyn AuthService>,
-    // 새 서비스 추가 시 여기에 Arc<dyn XxxService> 필드 추가
+    pub analysis_service: Arc<dyn AnalysisService>,
+    pub user_service: Arc<dyn UserService>,
 }
 
 impl AppState {
-    pub fn new(db_pool: PgPool, config: Config, auth_service: Arc<dyn AuthService>) -> Self {
+    pub fn new(
+        db_pool: PgPool,
+        config: Config,
+        auth_service: Arc<dyn AuthService>,
+        analysis_service: Arc<dyn AnalysisService>,
+        user_service: Arc<dyn UserService>,
+    ) -> Self {
         Self {
             db_pool,
             config,
             auth_service,
+            analysis_service,
+            user_service,
         }
     }
 }
