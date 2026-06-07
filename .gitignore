@@ -1,0 +1,16 @@
+# Claude Code hook markers
+.claude/.pending-doc-check
+.claude/.pending-rust-check
+.claude/.pending-spec-check
+.claude/.plan-exists
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# OS
+.DS_Store
+
+# Env
+.env
+.env.local
+*.pem

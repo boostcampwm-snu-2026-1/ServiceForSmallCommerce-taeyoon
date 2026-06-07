@@ -1,0 +1,24 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto; -- testcontainers 호환성 필수 (gen_random_uuid)
+
+-- 첫 번째 마이그레이션: 기본 테이블 정의
+-- 도메인 구현 시 아래 주석을 참고하여 작성한다 (specification/dev/backend.md).
+--
+-- CREATE TABLE users (
+--     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     email         TEXT NOT NULL UNIQUE,
+--     password_hash TEXT NOT NULL,
+--     plan          TEXT NOT NULL DEFAULT 'free',
+--     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+--
+-- CREATE TABLE analyses (
+--     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     user_id      UUID NOT NULL REFERENCES users(id),
+--     urls         TEXT[] NOT NULL,
+--     review_limit INT NOT NULL DEFAULT 100,
+--     status       TEXT NOT NULL DEFAULT 'pending',
+--     result       JSONB,
+--     error        TEXT,
+--     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--     completed_at TIMESTAMPTZ
+-- );
