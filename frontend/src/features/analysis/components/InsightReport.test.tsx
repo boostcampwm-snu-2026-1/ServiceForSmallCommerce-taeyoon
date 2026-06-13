@@ -59,4 +59,24 @@ describe('InsightReport', () => {
     expect(screen.getByText('무선 청소기')).toBeInTheDocument();
     expect(screen.getByText(/4\.3/)).toBeInTheDocument();
   });
+
+  it('renders the methodology sample size', () => {
+    render(<InsightReport result={result} />);
+    expect(screen.getByText('분석 방법 · 데이터 출처')).toBeInTheDocument();
+    expect(
+      screen.getByText(/분석 표본: 총 120개 리뷰 \(상품 1개\)/),
+    ).toBeInTheDocument();
+  });
+
+  it('renders a section description', () => {
+    render(<InsightReport result={result} />);
+    expect(
+      screen.getByText(/내 상품이 파고들 기회입니다/),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the disclaimer', () => {
+    render(<InsightReport result={result} />);
+    expect(screen.getByText(/참고용 인사이트입니다/)).toBeInTheDocument();
+  });
 });
