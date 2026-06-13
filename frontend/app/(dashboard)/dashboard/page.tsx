@@ -7,6 +7,7 @@ import { createAnalysis, listAnalyses } from '@/src/features/analysis/api';
 import { UrlInput } from '@/src/features/analysis/components/UrlInput';
 import { AnalysisCard } from '@/src/features/analysis/components/AnalysisCard';
 import { Card } from '@/src/shared/components/ui';
+import { EmptyState } from '@/src/shared/components/EmptyState';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -44,11 +45,19 @@ export default function DashboardPage() {
       </Card>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold text-gray-900">최근 분석</h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold text-gray-900">최근 분석</h2>
+          {!isLoading && analyses.length > 0 && (
+            <span className="text-sm text-gray-500">총 {analyses.length}건</span>
+          )}
+        </div>
         {isLoading ? (
           <p className="text-sm text-gray-500">불러오는 중...</p>
         ) : analyses.length === 0 ? (
-          <p className="text-sm text-gray-500">아직 분석 기록이 없습니다.</p>
+          <EmptyState
+            title="아직 분석 기록이 없습니다."
+            description="위에서 경쟁 상품 URL을 입력해 첫 분석을 시작해 보세요."
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {analyses.map((analysis) => (
