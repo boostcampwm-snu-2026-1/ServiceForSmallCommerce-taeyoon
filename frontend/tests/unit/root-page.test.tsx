@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import Home from '@/app/page';
 import { useAuthStore } from '@/src/features/auth/store';
 
@@ -14,12 +14,20 @@ beforeEach(() => {
   useAuthStore.setState({ token: null, user: null });
 });
 
-describe('Home (root redirect)', () => {
-  it('redirects to /login when there is no token', async () => {
+describe('Home (root)', () => {
+  it('renders the landing page when there is no token', async () => {
     render(<Home />);
+
+    // 미인증 방문자에게는 랜딩 히어로/CTA가 보이고 리다이렉트가 일어나지 않는다.
     await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith('/login');
+      expect(
+        screen.getByRole('heading', {
+          level: 1,
+          name: '리뷰가 알려주는 경쟁사를 이기는 법',
+        })
+      ).toBeInTheDocument();
     });
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it('redirects to /dashboard when a token is present', async () => {
