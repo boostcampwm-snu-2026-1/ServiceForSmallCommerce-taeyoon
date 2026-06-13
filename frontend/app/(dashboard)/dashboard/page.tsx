@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createAnalysis, listAnalyses } from '@/src/features/analysis/api';
 import { UrlInput } from '@/src/features/analysis/components/UrlInput';
 import { AnalysisCard } from '@/src/features/analysis/components/AnalysisCard';
+import { Card } from '@/src/shared/components/ui';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -33,11 +34,14 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+      <Card className="p-6">
         <h1 className="mb-4 text-xl font-bold text-gray-900">경쟁 상품 분석</h1>
+        <p className="mb-4 text-sm text-gray-500">
+          경쟁 상품의 쿠팡 URL을 입력하면 AI가 리뷰를 분석해 개선 포인트를 알려드립니다.
+        </p>
         <UrlInput onSubmit={handleSubmit} loading={submitting} />
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-      </section>
+      </Card>
 
       <section>
         <h2 className="mb-3 text-lg font-semibold text-gray-900">최근 분석</h2>

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/src/features/auth/store';
+import { Button, Container } from '@/src/shared/components/ui';
+import { Wordmark } from '@/src/shared/components/Wordmark';
 
 export default function DashboardLayout({
   children,
@@ -34,18 +36,14 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <span className="text-lg font-bold text-gray-900">Coupang Review AI</span>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-          >
+        <Container className="flex items-center justify-between py-3">
+          <Wordmark />
+          <Button variant="outline" size="sm" onClick={handleLogout}>
             로그아웃
-          </button>
-        </div>
+          </Button>
+        </Container>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
+      <Container className="py-6">{children}</Container>
     </div>
   );
 }
