@@ -11,7 +11,7 @@
 ```
 <type>: <subject>
 
-[optional body]
+[optional body — 관련 이슈는 Refs #N / #N 으로 참조]
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 ```
@@ -34,6 +34,15 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 - 서로 독립적인 변경은 **별도 커밋**
 - `.env`, `.env.prod`, 시크릿 파일은 **절대 커밋 금지**
 
+## 브랜치 / PR (GitHub 작업 흐름)
+
+상세: `.claude/github-workflow.md`
+
+- 작업은 `main` 직접 커밋 대신 **이슈 기반 브랜치**에서: `feature/issue-<N>-<slug>` (fix는 `fix/issue-<N>-<slug>`)
+- 완료 시 **PR**로 올린다. PR 본문 첫 줄에 **`Closes #N`** → 머지 시 이슈 자동 종료
+- PR 본문이 작업 로그 역할 (변경 요약 / 검증 / 주요 결정)
+- 루트 단일 레포 → 프로젝트 루트에서 커밋 (backend/frontend는 별도 레포 아님)
+
 ## 푸시
 
-사용자가 명시적으로 요청할 때만 푸시한다.
+사용자가 명시적으로 요청할 때만 푸시한다 (`git push`, PR 생성 포함).
