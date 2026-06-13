@@ -15,12 +15,57 @@ function severityVariant(severity: string): NonNullable<BadgeProps['variant']> {
   return SEVERITY_VARIANT[severity] ?? 'neutral';
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
   return (
     <Card className="p-6">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
-      {children}
+      <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+      {description ? (
+        <p className="mt-1 text-sm text-gray-500">{description}</p>
+      ) : null}
+      <div className="mt-4">{children}</div>
     </Card>
+  );
+}
+
+function Methodology({ products }: { products: ProductSummary[] }) {
+  const totalReviews = products.reduce((sum, p) => sum + p.total_reviews, 0);
+  const productCount = products.length;
+  return (
+    <Card className="border-brand-100 bg-brand-50 p-5">
+      <details>
+        <summary className="flex cursor-pointer items-center gap-2 font-medium text-gray-900">
+          <Badge variant="info">info</Badge>
+          분석 방법 · 데이터 출처
+        </summary>
+        <div className="mt-3 flex flex-col gap-2 text-sm text-gray-600">
+          <p>
+            쿠팡 공개 리뷰를 자동 수집해, 한국어 문맥 기준으로 AI가 불만·강점 표현을
+            분류·집계했습니다.
+          </p>
+          <p className="font-medium text-gray-800">
+            분석 표본: 총 {totalReviews}개 리뷰 (상품 {productCount}개)
+          </p>
+          <p>표본이 많을수록 패턴 신뢰도가 높아집니다.</p>
+        </div>
+      </details>
+    </Card>
+  );
+}
+
+function Disclaimer() {
+  return (
+    <div className="border-t border-gray-100 pt-4 text-xs text-gray-500">
+      본 분석은 공개 리뷰를 AI가 자동 분류·집계한 결과로 참고용 인사이트입니다. 중요한
+      의사결정 전 원문 리뷰를 함께 확인하시기 바랍니다.
+    </div>
   );
 }
 
@@ -73,7 +118,12 @@ export function InsightReport({ result }: InsightReportProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Section title="고쳐야 할 것 TOP 3">
+      <Methodology products={products} />
+
+      <Section
+        title="고쳐야 할 것 TOP 3"
+        description="경쟁사 리뷰의 불만 패턴 중 개선 효과가 큰 순서입니다. 위에서부터 손대면 경쟁 우위를 빠르게 확보할 수 있습니다."
+      >
         {improvements.length === 0 ? (
           <EmptyHint />
         ) : (
@@ -93,7 +143,10 @@ export function InsightReport({ result }: InsightReportProps) {
         )}
       </Section>
 
-      <Section title="경쟁사 약점">
+      <Section
+        title="경쟁사 약점"
+        description="경쟁사가 반복적으로 지적받는 지점입니다. 내 상품이 파고들 기회입니다."
+      >
         {insights.competitor_weaknesses.length === 0 ? (
           <EmptyHint />
         ) : (
@@ -108,7 +161,10 @@ export function InsightReport({ result }: InsightReportProps) {
         )}
       </Section>
 
-      <Section title="구매 결정 요인">
+      <Section
+        title="구매 결정 요인"
+        description="고객이 구매를 결정할 때 실제로 언급한 핵심 요소입니다. 상세페이지·마케팅 메시지에 활용하세요."
+      >
         {insights.purchase_drivers.length === 0 ? (
           <EmptyHint />
         ) : (
@@ -125,7 +181,10 @@ export function InsightReport({ result }: InsightReportProps) {
         )}
       </Section>
 
-      <Section title="반복 불만 / 긍정 요인">
+      <Section
+        title="반복 불만 / 긍정 요인"
+        description="리뷰에 자주 등장한 표현을 빈도순으로 집계했습니다."
+      >
         <div className="grid gap-6 sm:grid-cols-2">
           <div>
             <h3 className="mb-2 text-sm font-medium text-gray-900">반복 불만</h3>
@@ -163,7 +222,10 @@ export function InsightReport({ result }: InsightReportProps) {
         </div>
       </Section>
 
-      <Section title="평점 분포">
+      <Section
+        title="평점 분포"
+        description="수집된 리뷰의 별점 분포입니다."
+      >
         {products.length === 0 ? (
           <EmptyHint />
         ) : (
@@ -174,6 +236,8 @@ export function InsightReport({ result }: InsightReportProps) {
           </div>
         )}
       </Section>
+
+      <Disclaimer />
     </div>
   );
 }
