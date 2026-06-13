@@ -16,7 +16,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Coupang Review AI",
-  description: "쿠팡 리뷰 AI 분석",
+  description: "쿠팡 경쟁 상품 리뷰를 AI가 분석해 개선 인사이트를 제공하는 셀러 도구",
 };
 
 export default function RootLayout({

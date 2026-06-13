@@ -1,25 +1,26 @@
+import { Badge, Card, type BadgeProps } from '@/src/shared/components/ui';
 import type { AnalysisResult, ProductSummary } from '@/src/features/analysis/types';
 
 interface InsightReportProps {
   result: AnalysisResult;
 }
 
-const SEVERITY_BADGE: Record<string, string> = {
-  high: 'bg-red-100 text-red-800',
-  medium: 'bg-amber-100 text-amber-800',
-  low: 'bg-gray-100 text-gray-700',
+const SEVERITY_VARIANT: Record<string, NonNullable<BadgeProps['variant']>> = {
+  high: 'danger',
+  medium: 'warning',
+  low: 'neutral',
 };
 
-function severityBadge(severity: string): string {
-  return SEVERITY_BADGE[severity] ?? 'bg-gray-100 text-gray-700';
+function severityVariant(severity: string): NonNullable<BadgeProps['variant']> {
+  return SEVERITY_VARIANT[severity] ?? 'neutral';
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <Card className="p-6">
       <h2 className="mb-4 text-lg font-semibold text-gray-900">{title}</h2>
       {children}
-    </section>
+    </Card>
   );
 }
 
@@ -79,7 +80,7 @@ export function InsightReport({ result }: InsightReportProps) {
           <ol className="flex flex-col gap-4">
             {improvements.map((point) => (
               <li key={point.rank} className="flex gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
                   {point.rank}
                 </span>
                 <div>
@@ -115,7 +116,7 @@ export function InsightReport({ result }: InsightReportProps) {
             {insights.purchase_drivers.map((driver, i) => (
               <li
                 key={i}
-                className="rounded-full bg-blue-50 px-3 py-1 text-sm text-blue-700"
+                className="rounded-full bg-brand-50 px-3 py-1 text-sm text-brand-700"
               >
                 {driver}
               </li>
@@ -136,11 +137,7 @@ export function InsightReport({ result }: InsightReportProps) {
                   <li key={i} className="flex items-center justify-between gap-2">
                     <span className="text-sm text-gray-800">{c.text}</span>
                     <span className="flex items-center gap-2">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${severityBadge(c.severity)}`}
-                      >
-                        {c.severity}
-                      </span>
+                      <Badge variant={severityVariant(c.severity)}>{c.severity}</Badge>
                       <span className="text-xs text-gray-500">{c.count}회</span>
                     </span>
                   </li>

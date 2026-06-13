@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Badge, type BadgeProps } from '@/src/shared/components/ui';
 import type { Analysis, AnalysisStatus } from '@/src/features/analysis/types';
 
 interface AnalysisCardProps {
@@ -13,12 +14,12 @@ const STATUS_LABEL: Record<AnalysisStatus, string> = {
   failed: '실패',
 };
 
-const STATUS_BADGE: Record<AnalysisStatus, string> = {
-  pending: 'bg-amber-100 text-amber-800',
-  crawling: 'bg-amber-100 text-amber-800',
-  analyzing: 'bg-amber-100 text-amber-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
+const STATUS_VARIANT: Record<AnalysisStatus, NonNullable<BadgeProps['variant']>> = {
+  pending: 'warning',
+  crawling: 'warning',
+  analyzing: 'warning',
+  completed: 'success',
+  failed: 'danger',
 };
 
 function summarizeUrls(urls: string[]): string {
@@ -36,14 +37,10 @@ export function AnalysisCard({ analysis }: AnalysisCardProps) {
   return (
     <Link
       href={`/analyses/${analysis.id}`}
-      className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-400 hover:shadow"
+      className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:border-brand-400 hover:shadow"
     >
       <div className="flex items-center justify-between gap-2">
-        <span
-          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[analysis.status]}`}
-        >
-          {STATUS_LABEL[analysis.status]}
-        </span>
+        <Badge variant={STATUS_VARIANT[analysis.status]}>{STATUS_LABEL[analysis.status]}</Badge>
         <span className="text-xs text-gray-500">{formatDate(analysis.created_at)}</span>
       </div>
       <p className="mt-2 truncate text-sm text-gray-800">{summarizeUrls(analysis.urls)}</p>
