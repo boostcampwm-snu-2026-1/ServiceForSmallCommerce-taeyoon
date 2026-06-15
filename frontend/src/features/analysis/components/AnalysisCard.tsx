@@ -22,6 +22,14 @@ const STATUS_VARIANT: Record<AnalysisStatus, NonNullable<BadgeProps['variant']>>
   failed: 'danger',
 };
 
+const STATUS_DOT: Record<AnalysisStatus, string> = {
+  pending: 'bg-amber-400',
+  crawling: 'bg-amber-400',
+  analyzing: 'bg-amber-400',
+  completed: 'bg-emerald-500',
+  failed: 'bg-red-500',
+};
+
 function summarizeUrls(urls: string[]): string {
   if (urls.length === 0) return 'URL 없음';
   const [first, ...rest] = urls;
@@ -34,16 +42,41 @@ function formatDate(iso: string): string {
 }
 
 export function AnalysisCard({ analysis }: AnalysisCardProps) {
+  const isCompleted = analysis.status === 'completed';
   return (
     <Link
       href={`/analyses/${analysis.id}`}
-      className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition hover:border-brand-400 hover:shadow"
+      className="group block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md"
     >
       <div className="flex items-center justify-between gap-2">
-        <Badge variant={STATUS_VARIANT[analysis.status]}>{STATUS_LABEL[analysis.status]}</Badge>
-        <span className="text-xs text-gray-500">{formatDate(analysis.created_at)}</span>
+        <Badge variant={STATUS_VARIANT[analysis.status]} className="inline-flex items-center gap-1.5">
+          <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[analysis.status]}`} aria-hidden="true" />
+          {STATUS_LABEL[analysis.status]}
+        </Badge>
+        <span className="text-xs text-gray-400">{formatDate(analysis.created_at)}</span>
       </div>
-      <p className="mt-2 truncate text-sm text-gray-800">{summarizeUrls(analysis.urls)}</p>
+      <div className="mt-3 flex items-center gap-2">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-4 w-4 shrink-0 text-gray-400"
+          aria-hidden="true"
+        >
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+        <p className="truncate text-sm text-gray-800">{summarizeUrls(analysis.urls)}</p>
+      </div>
+      {isCompleted && (
+        <p className="mt-3 text-right text-xs font-medium text-brand-600">
+          결과 보기 <span className="transition group-hover:translate-x-0.5">→</span>
+        </p>
+      )}
     </Link>
   );
 }

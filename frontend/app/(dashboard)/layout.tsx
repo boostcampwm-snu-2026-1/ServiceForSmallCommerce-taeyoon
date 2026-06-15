@@ -35,7 +35,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
+      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur">
         <Container className="flex items-center justify-between py-3">
           <Wordmark />
           <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -43,7 +43,7 @@ export default function DashboardLayout({
           </Button>
         </Container>
       </header>
-      <Container className="py-6">{children}</Container>
+      <Container className="py-8">{children}</Container>
     </div>
   );
 }
