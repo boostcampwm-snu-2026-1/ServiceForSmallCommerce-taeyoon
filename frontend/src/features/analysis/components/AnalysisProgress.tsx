@@ -87,7 +87,7 @@ export function AnalysisProgress({ status }: { status: AnalysisStatus }) {
   const isActive = status !== 'completed' && status !== 'failed';
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+    <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
       <ol className="flex items-start">
         {STEPS.map((step, index) => {
           const state = stepStateFor(index, status);

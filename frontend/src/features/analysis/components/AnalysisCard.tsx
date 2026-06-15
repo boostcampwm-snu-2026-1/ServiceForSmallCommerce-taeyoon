@@ -46,16 +46,16 @@ export function AnalysisCard({ analysis }: AnalysisCardProps) {
   return (
     <Link
       href={`/analyses/${analysis.id}`}
-      className="group block rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md"
+      className="group block min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md"
     >
       <div className="flex items-center justify-between gap-2">
         <Badge variant={STATUS_VARIANT[analysis.status]} className="inline-flex items-center gap-1.5">
           <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[analysis.status]}`} aria-hidden="true" />
           {STATUS_LABEL[analysis.status]}
         </Badge>
-        <span className="text-xs text-gray-400">{formatDate(analysis.created_at)}</span>
+        <span className="shrink-0 whitespace-nowrap text-xs text-gray-400">{formatDate(analysis.created_at)}</span>
       </div>
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex min-w-0 items-center gap-2">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"

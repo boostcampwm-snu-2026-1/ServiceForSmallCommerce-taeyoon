@@ -189,8 +189,10 @@ function RatingDistribution({ product }: { product: ProductSummary }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-gray-900">{product.product_name}</h3>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+        <h3 className="min-w-0 break-words text-sm font-medium text-gray-900">
+          {product.product_name}
+        </h3>
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
           <span className="text-amber-400">
             <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
               <path d="M10 1.5l2.4 4.9 5.4.8-3.9 3.8.92 5.4L10 13.9 5.18 16.4l.92-5.4L2.2 7.2l5.4-.8L10 1.5z" />
@@ -251,9 +253,11 @@ export function InsightReport({ result }: InsightReportProps) {
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white shadow-sm shadow-brand-600/30">
                   {point.rank}
                 </span>
-                <div>
-                  <p className="font-medium text-gray-900">{point.title}</p>
-                  <p className="mt-0.5 text-sm text-gray-600">{point.detail}</p>
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 break-words">{point.title}</p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-gray-600 break-words">
+                    {point.detail}
+                  </p>
                 </div>
               </li>
             ))}
@@ -276,14 +280,14 @@ export function InsightReport({ result }: InsightReportProps) {
                 key={i}
                 className="rounded-lg border border-amber-100 bg-amber-50/50 p-3.5 transition-colors hover:bg-amber-50"
               >
-                <p className="font-medium text-gray-900">{weakness.title}</p>
-                <p className="mt-1 flex items-start gap-1.5 text-sm text-amber-800">
-                  <span className="mt-0.5 text-amber-500" aria-hidden="true">
+                <p className="font-medium text-gray-900 break-words">{weakness.title}</p>
+                <p className="mt-1 flex items-start gap-1.5 text-sm leading-relaxed text-amber-800">
+                  <span className="mt-0.5 shrink-0 text-amber-500" aria-hidden="true">
                     <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                       <path d="M10 1l2.5 5.5L18 7l-4 4 1 6-5-2.8L5 17l1-6-4-4 5.5-.5L10 1z" />
                     </svg>
                   </span>
-                  {weakness.opportunity}
+                  <span className="min-w-0 break-words">{weakness.opportunity}</span>
                 </p>
               </li>
             ))}
@@ -304,9 +308,9 @@ export function InsightReport({ result }: InsightReportProps) {
             {insights.purchase_drivers.map((driver, i) => (
               <li
                 key={i}
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
+                className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700"
               >
-                <span className="text-emerald-500" aria-hidden="true">
+                <span className="shrink-0 text-emerald-500" aria-hidden="true">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
                     <path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0l-3.5-3.5a1 1 0 111.4-1.4l2.8 2.79 6.8-6.79a1 1 0 011.4 0z" clipRule="evenodd" />
                   </svg>
@@ -324,7 +328,7 @@ export function InsightReport({ result }: InsightReportProps) {
         accent="brand"
         icon={<ScaleIcon />}
       >
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-lg border border-red-100 bg-red-50/40 p-4">
             <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-red-700">
               <span className="text-red-400" aria-hidden="true">
@@ -340,7 +344,7 @@ export function InsightReport({ result }: InsightReportProps) {
               <ul className="flex flex-col gap-2">
                 {insights.top_complaints.map((c, i) => (
                   <li key={i} className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-gray-800">{c.text}</span>
+                    <span className="min-w-0 break-words text-sm text-gray-800">{c.text}</span>
                     <span className="flex shrink-0 items-center gap-2">
                       <Badge variant={severityVariant(c.severity)}>
                         {severityLabel(c.severity)}
@@ -367,8 +371,8 @@ export function InsightReport({ result }: InsightReportProps) {
               <ul className="flex flex-col gap-2">
                 {insights.top_positives.map((p, i) => (
                   <li key={i} className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-gray-800">{p.text}</span>
-                    <span className="text-xs text-gray-500">{p.count}회</span>
+                    <span className="min-w-0 break-words text-sm text-gray-800">{p.text}</span>
+                    <span className="shrink-0 text-xs text-gray-500">{p.count}회</span>
                   </li>
                 ))}
               </ul>

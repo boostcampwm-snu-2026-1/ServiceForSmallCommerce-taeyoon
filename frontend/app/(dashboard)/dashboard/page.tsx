@@ -57,7 +57,7 @@ export default function DashboardPage() {
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-brand-100">
           경쟁 상품의 쿠팡 URL을 입력하면 AI가 리뷰를 분석해 개선 포인트를 알려드립니다.
         </p>
-        <div className="mt-5 rounded-xl bg-white p-4 shadow-sm sm:p-5">
+        <div className="mt-5 rounded-xl bg-white p-5 shadow-sm sm:p-6">
           <UrlInput onSubmit={handleSubmit} loading={submitting} />
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         </div>
@@ -80,7 +80,7 @@ export default function DashboardPage() {
             description="위에서 경쟁 상품 URL을 입력해 첫 분석을 시작해 보세요."
           />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
             {analyses.map((analysis) => (
               <AnalysisCard key={analysis.id} analysis={analysis} />
             ))}

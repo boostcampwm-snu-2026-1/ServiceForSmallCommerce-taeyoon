@@ -40,21 +40,23 @@ function ResultHeader({
   );
   return (
     <div className="rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 p-6 text-white shadow-md">
-      <p className="text-sm font-medium text-brand-100">분석 완료</p>
-      <div className="mt-4 grid grid-cols-3 gap-4">
-        <div>
-          <p className="text-2xl font-bold sm:text-3xl">{result.products.length}</p>
-          <p className="mt-0.5 text-xs text-brand-100">분석 상품</p>
+      <p className="text-sm font-semibold text-brand-100">분석 완료</p>
+      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-6">
+        <div className="min-w-0">
+          <p className="text-2xl font-bold leading-none sm:text-3xl">
+            {result.products.length}
+          </p>
+          <p className="mt-2 text-xs font-medium text-brand-100">분석 상품</p>
         </div>
-        <div>
-          <p className="text-2xl font-bold sm:text-3xl">{totalReviews}</p>
-          <p className="mt-0.5 text-xs text-brand-100">총 리뷰 수</p>
+        <div className="min-w-0">
+          <p className="text-2xl font-bold leading-none sm:text-3xl">{totalReviews}</p>
+          <p className="mt-2 text-xs font-medium text-brand-100">총 리뷰 수</p>
         </div>
-        <div>
-          <p className="text-base font-semibold sm:text-lg">
+        <div className="min-w-0">
+          <p className="break-words text-sm font-semibold leading-snug sm:text-base">
             {completedAt ? formatCompletedAt(completedAt) : '—'}
           </p>
-          <p className="mt-0.5 text-xs text-brand-100">생성 시각</p>
+          <p className="mt-2 text-xs font-medium text-brand-100">생성 시각</p>
         </div>
       </div>
     </div>
