@@ -6,11 +6,20 @@ import type { AnalysisResult } from '@/src/features/analysis/types';
 const result: AnalysisResult = {
   products: [
     {
+      url: 'https://coupang.com/competitor',
+      product_name: '경쟁 청소기',
+      total_reviews: 80,
+      avg_rating: 4.0,
+      rating_distribution: { '1': 4, '2': 4, '3': 8, '4': 30, '5': 34 },
+      is_mine: false,
+    },
+    {
       url: 'https://coupang.com/a',
       product_name: '무선 청소기',
       total_reviews: 120,
       avg_rating: 4.3,
       rating_distribution: { '1': 5, '2': 5, '3': 10, '4': 40, '5': 60 },
+      is_mine: true,
     },
   ],
   insights: {
@@ -25,6 +34,7 @@ const result: AnalysisResult = {
       { title: '느린 충전', opportunity: '고속 충전으로 차별화' },
     ],
     purchase_drivers: ['가성비', '디자인'],
+    comparison_summary: '내 제품은 평점이 높지만 배터리 불만이 더 두드러집니다.',
   },
 };
 
@@ -64,7 +74,7 @@ describe('InsightReport', () => {
     render(<InsightReport result={result} />);
     expect(screen.getByText('분석 방법 · 데이터 출처')).toBeInTheDocument();
     expect(
-      screen.getByText(/분석 표본: 총 120개 리뷰 \(상품 1개\)/),
+      screen.getByText(/분석 표본: 총 200개 리뷰 \(상품 2개\)/),
     ).toBeInTheDocument();
   });
 
@@ -78,5 +88,35 @@ describe('InsightReport', () => {
   it('renders the disclaimer', () => {
     render(<InsightReport result={result} />);
     expect(screen.getByText(/참고용 인사이트입니다/)).toBeInTheDocument();
+  });
+
+  it('renders the comparison summary when present', () => {
+    render(<InsightReport result={result} />);
+    expect(screen.getByText('비교 총평')).toBeInTheDocument();
+    expect(
+      screen.getByText('내 제품은 평점이 높지만 배터리 불만이 더 두드러집니다.'),
+    ).toBeInTheDocument();
+  });
+
+  it('omits the comparison summary card when null', () => {
+    const noSummary: AnalysisResult = {
+      ...result,
+      insights: { ...result.insights, comparison_summary: null },
+    };
+    render(<InsightReport result={noSummary} />);
+    expect(screen.queryByText('비교 총평')).not.toBeInTheDocument();
+  });
+
+  it('renders the my-product badge in the rating distribution', () => {
+    render(<InsightReport result={result} />);
+    expect(screen.getByText('내 제품')).toBeInTheDocument();
+    expect(screen.getByText('경쟁사')).toBeInTheDocument();
+  });
+
+  it('keeps the preserved section titles', () => {
+    render(<InsightReport result={result} />);
+    expect(screen.getByText('고쳐야 할 것 TOP 3')).toBeInTheDocument();
+    expect(screen.getByText('경쟁사 약점')).toBeInTheDocument();
+    expect(screen.getByText('구매 결정 요인')).toBeInTheDocument();
   });
 });

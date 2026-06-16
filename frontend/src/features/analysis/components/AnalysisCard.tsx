@@ -3,7 +3,7 @@ import { Badge, type BadgeProps } from '@/src/shared/components/ui';
 import type { Analysis, AnalysisStatus } from '@/src/features/analysis/types';
 
 interface AnalysisCardProps {
-  analysis: Pick<Analysis, 'id' | 'status' | 'urls' | 'created_at'>;
+  analysis: Pick<Analysis, 'id' | 'status' | 'urls' | 'my_url' | 'created_at'>;
 }
 
 const STATUS_LABEL: Record<AnalysisStatus, string> = {
@@ -34,6 +34,16 @@ function summarizeUrls(urls: string[]): string {
   if (urls.length === 0) return 'URL 없음';
   const [first, ...rest] = urls;
   return rest.length > 0 ? `${first} 외 ${rest.length}개` : first;
+}
+
+function summarizeAnalysis(
+  myUrl: string | null,
+  urls: string[],
+): string {
+  if (myUrl) {
+    return `내 제품 vs 경쟁 ${urls.length}개`;
+  }
+  return summarizeUrls(urls);
 }
 
 function formatDate(iso: string): string {
@@ -70,7 +80,9 @@ export function AnalysisCard({ analysis }: AnalysisCardProps) {
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
-        <p className="truncate text-sm text-gray-800">{summarizeUrls(analysis.urls)}</p>
+        <p className="truncate text-sm text-gray-800">
+          {summarizeAnalysis(analysis.my_url, analysis.urls)}
+        </p>
       </div>
       {isCompleted && (
         <p className="mt-3 text-right text-xs font-medium text-brand-600">

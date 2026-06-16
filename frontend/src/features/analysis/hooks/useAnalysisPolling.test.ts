@@ -17,6 +17,7 @@ const completed: Analysis = {
   id: 'an-1',
   status: 'completed',
   urls: ['https://coupang.com/a'],
+  my_url: 'https://coupang.com/mine',
   result: {
     products: [],
     insights: {
@@ -25,6 +26,7 @@ const completed: Analysis = {
       improvement_points: [],
       competitor_weaknesses: [],
       purchase_drivers: [],
+      comparison_summary: null,
     },
   },
   error: null,

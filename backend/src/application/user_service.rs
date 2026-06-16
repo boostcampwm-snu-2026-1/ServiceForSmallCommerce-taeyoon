@@ -110,6 +110,7 @@ mod tests {
         async fn create(
             &self,
             _user_id: Uuid,
+            _my_url: &str,
             _urls: &[String],
             _review_limit: i32,
         ) -> AppResult<Analysis> {

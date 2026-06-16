@@ -25,6 +25,7 @@ impl PgAnalysisRepository {
 struct AnalysisRow {
     id: Uuid,
     user_id: Uuid,
+    my_url: Option<String>,
     urls: Vec<String>,
     review_limit: i32,
     status: String,
@@ -46,6 +47,7 @@ impl AnalysisRow {
         Ok(Analysis {
             id: self.id,
             user_id: self.user_id,
+            my_url: self.my_url,
             urls: self.urls,
             review_limit: self.review_limit,
             status: AnalysisStatus::from_db_str(&self.status),
@@ -58,21 +60,23 @@ impl AnalysisRow {
 }
 
 const SELECT_COLUMNS: &str =
-    "id, user_id, urls, review_limit, status, result, error, created_at, completed_at";
+    "id, user_id, my_url, urls, review_limit, status, result, error, created_at, completed_at";
 
 #[async_trait]
 impl AnalysisRepository for PgAnalysisRepository {
     async fn create(
         &self,
         user_id: Uuid,
+        my_url: &str,
         urls: &[String],
         review_limit: i32,
     ) -> AppResult<Analysis> {
         let row: AnalysisRow = sqlx::query_as(&format!(
-            "INSERT INTO analyses (user_id, urls, review_limit) \
-             VALUES ($1, $2, $3) RETURNING {SELECT_COLUMNS}"
+            "INSERT INTO analyses (user_id, my_url, urls, review_limit) \
+             VALUES ($1, $2, $3, $4) RETURNING {SELECT_COLUMNS}"
         ))
         .bind(user_id)
+        .bind(my_url)
         .bind(urls)
         .bind(review_limit)
         .fetch_one(&self.pool)
@@ -232,6 +236,7 @@ mod tests {
                 total_reviews: 100,
                 avg_rating: 4.2,
                 rating_distribution: dist,
+                is_mine: true,
             }],
             insights: Insights {
                 top_complaints: vec![Complaint {
@@ -253,6 +258,7 @@ mod tests {
                     opportunity: "빠른 CS 강조".to_string(),
                 }],
                 purchase_drivers: vec!["저렴한 가격".to_string()],
+                comparison_summary: Some("내 제품이 경쟁사보다 우수합니다.".to_string()),
             },
         }
     }
@@ -263,6 +269,7 @@ mod tests {
         let user_id = insert_user(&pool).await;
         let repo = PgAnalysisRepository::new(pool);
 
+        let my_url = "https://www.coupang.com/vp/products/0".to_string();
         let urls = vec![
             "https://www.coupang.com/vp/products/1".to_string(),
             "https://www.coupang.com/vp/products/2".to_string(),
@@ -270,10 +277,11 @@ mod tests {
 
         // create → pending
         let created = repo
-            .create(user_id, &urls, 100)
+            .create(user_id, &my_url, &urls, 100)
             .await
             .expect("create failed");
         assert_eq!(created.user_id, user_id);
+        assert_eq!(created.my_url.as_deref(), Some(my_url.as_str()));
         assert_eq!(created.urls, urls);
         assert_eq!(created.review_limit, 100);
         assert_eq!(created.status, AnalysisStatus::Pending);
@@ -286,6 +294,7 @@ mod tests {
             .expect("find_by_id failed")
             .expect("should exist");
         assert_eq!(found.status, AnalysisStatus::Pending);
+        assert_eq!(found.my_url.as_deref(), Some(my_url.as_str()));
 
         // update_status → crawling
         repo.update_status(created.id, AnalysisStatus::Crawling)
@@ -341,9 +350,10 @@ mod tests {
         let user_id = insert_user(&pool).await;
         let repo = PgAnalysisRepository::new(pool);
 
+        let my_url = "https://www.coupang.com/vp/products/8".to_string();
         let urls = vec!["https://www.coupang.com/vp/products/9".to_string()];
         let created = repo
-            .create(user_id, &urls, 50)
+            .create(user_id, &my_url, &urls, 50)
             .await
             .expect("create failed");
 

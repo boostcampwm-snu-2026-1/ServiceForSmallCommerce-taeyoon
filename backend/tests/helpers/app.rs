@@ -1,5 +1,5 @@
-use coupang_review_ai_backend::adapters::gemini::MockAiAnalyzer;
 use coupang_review_ai_backend::adapters::coupang::MockCoupangCrawler;
+use coupang_review_ai_backend::adapters::gemini::MockAiAnalyzer;
 use coupang_review_ai_backend::adapters::postgres::analysis_repo::PgAnalysisRepository;
 use coupang_review_ai_backend::adapters::postgres::user_repo::PgUserRepository;
 use coupang_review_ai_backend::application::analysis_service::{

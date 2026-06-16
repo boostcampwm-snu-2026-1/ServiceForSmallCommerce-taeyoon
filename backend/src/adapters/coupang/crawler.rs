@@ -67,6 +67,7 @@ impl CoupangCrawler for MockCoupangCrawler {
             url: url.to_string(),
             product_name: Self::product_name_for(url),
             reviews,
+            is_mine: false,
         })
     }
 }
@@ -90,20 +91,23 @@ impl HttpCoupangCrawler {
     /// 쿠팡 리뷰 JSON API(next-api/review) URL 을 만든다.
     ///
     /// 쿠팡 상품 상세에서 실제로 호출하는 엔드포인트로, 평점 요약 포함 정렬 리뷰를 반환한다.
-    pub fn build_review_api_url(product_id: &str, limit: u32) -> String {
+    /// 쿠팡은 페이지당 size 를 ~30 이하로 제한하므로(초과 시 빈 결과), 호출부에서
+    /// page 를 증가시키며 페이지네이션한다.
+    pub fn build_review_api_url(product_id: &str, page: u32, size: u32) -> String {
         format!(
             "https://www.coupang.com/next-api/review?productId={product_id}\
-             &page=1&size={limit}&sortBy=ORDER_SCORE_ASC&ratingSummary=true&ratings=&market="
+             &page={page}&size={size}&sortBy=ORDER_SCORE_ASC&ratingSummary=true&ratings=&market="
         )
     }
+
+    /// 쿠팡 리뷰 API 의 페이지당 최대 size. 초과 시 빈 contents 가 반환된다.
+    const MAX_PAGE_SIZE: u32 = 30;
 
     /// 프록시 템플릿이 있으면 타겟 URL 을 URL-encode 해 `{url}` 에 치환한다.
     /// 없으면 타겟 URL 을 그대로 반환(직접 호출).
     pub fn resolve_request_url(&self, target: &str) -> String {
         match &self.proxy_url {
-            Some(tmpl) if tmpl.contains("{url}") => {
-                tmpl.replace("{url}", &percent_encode(target))
-            }
+            Some(tmpl) if tmpl.contains("{url}") => tmpl.replace("{url}", &percent_encode(target)),
             // 템플릿에 {url} 가 없으면 쿼리로 덧붙인다(?url= 또는 &url=).
             Some(tmpl) => {
                 let sep = if tmpl.contains('?') { '&' } else { '?' };
@@ -142,7 +146,14 @@ impl HttpCoupangCrawler {
                 return r;
             }
         }
-        for k in ["reviews", "data", "content", "reviewList", "items", "contents"] {
+        for k in [
+            "reviews",
+            "data",
+            "content",
+            "reviewList",
+            "items",
+            "contents",
+        ] {
             if let Some(arr) = json.get(k).and_then(|v| v.as_array()) {
                 let r: Vec<Review> = arr.iter().filter_map(Self::parse_one_review).collect();
                 if !r.is_empty() {
@@ -224,6 +235,66 @@ impl HttpCoupangCrawler {
         }
         0
     }
+
+    /// curl 로 리뷰 API 를 호출한다(reqwest TLS 핑거프린트 우회용 로컬 경로).
+    /// 반환: (HTTP 상태코드, 응답 본문). COUPANG_USE_CURL 설정 시에만 사용된다.
+    async fn fetch_via_curl(
+        url: &str,
+        ua: &str,
+        referer: &str,
+        cookie: Option<&str>,
+    ) -> AppResult<(u16, String)> {
+        const MARKER: &str = "\n__HTTP_STATUS__";
+        let url = url.to_string();
+        let ua = ua.to_string();
+        let referer = referer.to_string();
+        let cookie = cookie.map(|c| c.to_string());
+
+        tokio::task::spawn_blocking(move || {
+            let mut cmd = std::process::Command::new("curl");
+            cmd.arg("-s")
+                .arg("--max-time")
+                .arg("30")
+                .arg("-w")
+                .arg(format!("{MARKER}%{{http_code}}"))
+                .arg("-H")
+                .arg(format!("User-Agent: {ua}"))
+                .arg("-H")
+                .arg(format!("Referer: {referer}"))
+                .arg("-H")
+                .arg("Accept: application/json, text/plain, */*")
+                .arg("-H")
+                .arg("Accept-Language: ko-KR,ko;q=0.9")
+                .arg("-H")
+                .arg("sec-ch-ua: \"Chromium\";v=\"149\", \"Google Chrome\";v=\"149\", \"Not.A/Brand\";v=\"24\"")
+                .arg("-H")
+                .arg("sec-ch-ua-mobile: ?0")
+                .arg("-H")
+                .arg("sec-ch-ua-platform: \"macOS\"")
+                .arg("-H")
+                .arg("sec-fetch-dest: empty")
+                .arg("-H")
+                .arg("sec-fetch-mode: cors")
+                .arg("-H")
+                .arg("sec-fetch-site: same-origin");
+            if let Some(c) = &cookie {
+                cmd.arg("-H").arg(format!("Cookie: {c}"));
+            }
+            cmd.arg(&url);
+
+            let out = cmd.output().map_err(|e| AppError::Internal(e.into()))?;
+            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+            if let Some(idx) = stdout.rfind(MARKER) {
+                let body = stdout[..idx].to_string();
+                let status: u16 = stdout[idx + MARKER.len()..].trim().parse().unwrap_or(0);
+                Ok((status, body))
+            } else {
+                Ok((0, stdout))
+            }
+        })
+        .await
+        .map_err(|e| AppError::Internal(anyhow::anyhow!("curl join error: {e}")))?
+    }
 }
 
 const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
@@ -250,59 +321,118 @@ impl CoupangCrawler for HttpCoupangCrawler {
         let product_id = Self::extract_product_id(url)
             .ok_or_else(|| AppError::BadRequest("유효하지 않은 쿠팡 상품 URL".into()))?;
 
-        // 쿠팡 상품 상세가 실제로 호출하는 리뷰 JSON API.
-        let target = Self::build_review_api_url(&product_id, limit);
-        // 프록시(스크래핑 API)가 설정돼 있으면 경유, 아니면 직접 호출.
-        let request_url = self.resolve_request_url(&target);
+        // 인증/우회 옵션(공통):
+        // - 데이터센터 IP 는 Akamai 가 IP 단에서 403 → 프록시/가정용 IP 필요.
+        // - 또는 실제 브라우저에서 검증된 Akamai 쿠키(_abck 등)를 COUPANG_COOKIE 로
+        //   주입(쿠키 만료 전까지). UA 는 그 쿠키를 만든 브라우저와 일치해야 하므로
+        //   COUPANG_UA 로 덮어쓸 수 있다.
+        // - reqwest TLS/HTTP2 핑거프린트는 쿠키가 유효해도 차단되므로,
+        //   COUPANG_USE_CURL 설정 시 curl 로 위임한다.
+        let ua = std::env::var("COUPANG_UA").unwrap_or_else(|_| USER_AGENT.to_string());
+        let cookie = std::env::var("COUPANG_COOKIE")
+            .ok()
+            .filter(|c| !c.trim().is_empty());
+        let use_curl = std::env::var("COUPANG_USE_CURL")
+            .map(|v| v != "0" && !v.trim().is_empty())
+            .unwrap_or(false);
+        let referer = format!("https://www.coupang.com/vp/products/{product_id}");
 
-        // 실제 브라우저처럼 보이도록 헤더 구성(직접 호출 시 최선의 노력).
-        // 주: 데이터센터 IP 는 Akamai 가 IP 단에서 403 처리하므로, 안정적 수집에는
-        // 프록시(COUPANG_PROXY_URL) 또는 가정용 IP/헤드리스 환경이 필요하다.
-        let resp = self
+        // 쿠팡은 페이지당 size 를 ~30 으로 제한하므로 페이지네이션으로 limit 까지 모은다.
+        let page_size = limit.clamp(1, Self::MAX_PAGE_SIZE);
+        let max_pages = limit.div_ceil(page_size).max(1) + 1; // 여유 1페이지
+        let mut all_reviews: Vec<Review> = Vec::with_capacity(limit as usize);
+        let mut product_name: Option<String> = None;
+
+        for page in 1..=max_pages {
+            if all_reviews.len() >= limit as usize {
+                break;
+            }
+            let target = Self::build_review_api_url(&product_id, page, page_size);
+            let request_url = self.resolve_request_url(&target);
+
+            let (status_code, body) = self
+                .fetch_body(&request_url, &ua, &referer, cookie.as_deref(), use_curl)
+                .await?;
+
+            if !(200..300).contains(&status_code) {
+                // 첫 페이지 실패는 에러로 보고, 이후 페이지 실패는 수집 중단.
+                if page == 1 {
+                    let snippet: String = body.chars().take(200).collect();
+                    return Err(AppError::Internal(anyhow::anyhow!(
+                        "쿠팡 리뷰 API 응답 실패: HTTP {status_code} — {snippet}"
+                    )));
+                }
+                break;
+            }
+
+            let json: serde_json::Value = match serde_json::from_str(&body) {
+                Ok(v) => v,
+                Err(e) => {
+                    if page == 1 {
+                        let snippet: String = body.chars().take(200).collect();
+                        return Err(AppError::Internal(anyhow::anyhow!(
+                            "쿠팡 리뷰 응답이 JSON 이 아님({e}): {snippet}"
+                        )));
+                    }
+                    break;
+                }
+            };
+
+            if product_name.is_none() {
+                product_name = Self::find_product_name(&json);
+            }
+            let page_reviews = Self::parse_reviews(&json);
+            if page_reviews.is_empty() {
+                break; // 더 이상 리뷰 없음(마지막 페이지).
+            }
+            all_reviews.extend(page_reviews);
+        }
+
+        all_reviews.truncate(limit as usize);
+
+        Ok(ProductReviews {
+            url: url.to_string(),
+            product_name: product_name.unwrap_or_else(|| format!("쿠팡 상품 {product_id}")),
+            reviews: all_reviews,
+            is_mine: false,
+        })
+    }
+}
+
+impl HttpCoupangCrawler {
+    /// 단일 페이지 본문을 가져온다. use_curl 이면 curl, 아니면 reqwest 를 쓴다.
+    /// 반환: (HTTP 상태코드, 응답 본문).
+    async fn fetch_body(
+        &self,
+        request_url: &str,
+        ua: &str,
+        referer: &str,
+        cookie: Option<&str>,
+        use_curl: bool,
+    ) -> AppResult<(u16, String)> {
+        if use_curl {
+            return Self::fetch_via_curl(request_url, ua, referer, cookie).await;
+        }
+        let mut req = self
             .client
-            .get(&request_url)
-            .header("User-Agent", USER_AGENT)
-            .header("Referer", format!("https://www.coupang.com/vp/products/{product_id}"))
+            .get(request_url)
+            .header("User-Agent", ua)
+            .header("Referer", referer)
             .header("Accept", "application/json, text/plain, */*")
             .header("Accept-Language", "ko-KR,ko;q=0.9,en;q=0.8")
             .header("sec-fetch-dest", "empty")
             .header("sec-fetch-mode", "cors")
-            .header("sec-fetch-site", "same-origin")
-            .send()
-            .await
-            .map_err(|e| AppError::Internal(e.into()))?;
-
-        // 상태코드를 먼저 검사해 실패 원인이 보이도록 한다(403 anti-bot 등).
-        let status = resp.status();
+            .header("sec-fetch-site", "same-origin");
+        if let Some(c) = cookie {
+            req = req.header("Cookie", c);
+        }
+        let resp = req.send().await.map_err(|e| AppError::Internal(e.into()))?;
+        let status = resp.status().as_u16();
         let body = resp
             .text()
             .await
             .map_err(|e| AppError::Internal(e.into()))?;
-        if !status.is_success() {
-            let snippet: String = body.chars().take(200).collect();
-            return Err(AppError::Internal(anyhow::anyhow!(
-                "쿠팡 리뷰 API 응답 실패: HTTP {status} — {snippet}"
-            )));
-        }
-
-        let json: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
-            let snippet: String = body.chars().take(200).collect();
-            AppError::Internal(anyhow::anyhow!(
-                "쿠팡 리뷰 응답이 JSON 이 아님({e}): {snippet}"
-            ))
-        })?;
-
-        let mut reviews = Self::parse_reviews(&json);
-        reviews.truncate(limit as usize);
-
-        let product_name = Self::find_product_name(&json)
-            .unwrap_or_else(|| format!("쿠팡 상품 {product_id}"));
-
-        Ok(ProductReviews {
-            url: url.to_string(),
-            product_name,
-            reviews,
-        })
+        Ok((status, body))
     }
 }
 
@@ -392,10 +522,11 @@ mod tests {
 
     #[test]
     fn build_review_api_url_uses_next_api() {
-        let url = HttpCoupangCrawler::build_review_api_url("7297090513", 50);
+        let url = HttpCoupangCrawler::build_review_api_url("7297090513", 2, 30);
         assert!(url.contains("www.coupang.com/next-api/review"));
         assert!(url.contains("productId=7297090513"));
-        assert!(url.contains("size=50"));
+        assert!(url.contains("page=2"));
+        assert!(url.contains("size=30"));
         assert!(url.contains("ratingSummary=true"));
     }
 
@@ -412,7 +543,8 @@ mod tests {
             reqwest::Client::new(),
             Some("https://api.scraperapi.com/?api_key=KEY&url={url}".into()),
         );
-        let out = c.resolve_request_url("https://www.coupang.com/next-api/review?productId=1&size=2");
+        let out =
+            c.resolve_request_url("https://www.coupang.com/next-api/review?productId=1&size=2");
         assert!(out.starts_with("https://api.scraperapi.com/?api_key=KEY&url="));
         // 타겟 URL 은 percent-encode 되어야 한다(콜론/슬래시/물음표/앰퍼샌드).
         assert!(out.contains("https%3A%2F%2Fwww.coupang.com"));

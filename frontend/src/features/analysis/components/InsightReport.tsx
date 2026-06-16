@@ -181,6 +181,21 @@ function EmptyHint() {
   return <p className="text-sm text-gray-500">데이터 없음</p>;
 }
 
+function OwnerBadge({ isMine }: { isMine: boolean }) {
+  if (isMine) {
+    return (
+      <span className="inline-flex shrink-0 items-center rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-700">
+        내 제품
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+      경쟁사
+    </span>
+  );
+}
+
 function RatingDistribution({ product }: { product: ProductSummary }) {
   const total = Object.values(product.rating_distribution).reduce(
     (sum, n) => sum + n,
@@ -189,8 +204,9 @@ function RatingDistribution({ product }: { product: ProductSummary }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="min-w-0 break-words text-sm font-medium text-gray-900">
-          {product.product_name}
+        <h3 className="flex min-w-0 items-center gap-2 break-words text-sm font-medium text-gray-900">
+          <OwnerBadge isMine={product.is_mine} />
+          <span className="min-w-0 break-words">{product.product_name}</span>
         </h3>
         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
           <span className="text-amber-400">
@@ -230,14 +246,31 @@ export function InsightReport({ result }: InsightReportProps) {
     .slice()
     .sort((a, b) => a.rank - b.rank)
     .slice(0, 3);
+  // 내 제품을 먼저 보여준다.
+  const sortedProducts = products
+    .slice()
+    .sort((a, b) => Number(b.is_mine) - Number(a.is_mine));
 
   return (
     <div className="flex flex-col gap-6">
       <Methodology products={products} />
 
+      {insights.comparison_summary ? (
+        <Section
+          title="비교 총평"
+          description="내 제품과 경쟁 상품을 종합 비교한 한눈에 보는 요약입니다."
+          accent="brand"
+          icon={<ScaleIcon />}
+        >
+          <p className="text-sm leading-relaxed text-gray-700 break-words">
+            {insights.comparison_summary}
+          </p>
+        </Section>
+      ) : null}
+
       <Section
         title="고쳐야 할 것 TOP 3"
-        description="경쟁사 리뷰의 불만 패턴 중 개선 효과가 큰 순서입니다. 위에서부터 손대면 경쟁 우위를 빠르게 확보할 수 있습니다."
+        description="내 제품 리뷰에서 드러난 개선 우선순위입니다. 위에서부터 손대면 경쟁 상품 대비 빠르게 우위를 확보할 수 있습니다."
         accent="brand"
         icon={<TargetIcon />}
       >
@@ -324,7 +357,7 @@ export function InsightReport({ result }: InsightReportProps) {
 
       <Section
         title="반복 불만 / 긍정 요인"
-        description="리뷰에 자주 등장한 표현을 빈도순으로 집계했습니다."
+        description="내 제품 리뷰에 자주 등장한 표현을 빈도순으로 집계했습니다."
         accent="brand"
         icon={<ScaleIcon />}
       >
@@ -391,7 +424,7 @@ export function InsightReport({ result }: InsightReportProps) {
           <EmptyHint />
         ) : (
           <div className="flex flex-col gap-6">
-            {products.map((product) => (
+            {sortedProducts.map((product) => (
               <RatingDistribution key={product.url} product={product} />
             ))}
           </div>

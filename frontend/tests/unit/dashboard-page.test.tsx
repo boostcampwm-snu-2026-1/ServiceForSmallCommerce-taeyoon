@@ -43,14 +43,18 @@ describe('DashboardPage', () => {
 
     renderWithClient(<DashboardPage />);
 
-    fireEvent.change(screen.getByLabelText('URL 1'), {
+    fireEvent.change(screen.getByLabelText('내 제품 URL'), {
+      target: { value: 'https://coupang.com/mine' },
+    });
+    fireEvent.change(screen.getByLabelText('경쟁 상품 URL 1'), {
       target: { value: 'https://coupang.com/x' },
     });
     fireEvent.click(screen.getByRole('button', { name: '분석 시작' }));
 
     await waitFor(() => {
       expect(mockCreate).toHaveBeenCalledWith({
-        urls: ['https://coupang.com/x'],
+        my_url: 'https://coupang.com/mine',
+        competitor_urls: ['https://coupang.com/x'],
         review_limit: 100,
       });
     });

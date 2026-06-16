@@ -9,6 +9,8 @@ pub struct ProductReviews {
     pub url: String,
     pub product_name: String,
     pub reviews: Vec<Review>,
+    /// 내 제품 여부. 크롤러는 기본 false 로 생성하고, 서비스가 내 제품에 한해 true 로 설정한다.
+    pub is_mine: bool,
 }
 
 /// 쿠팡 리뷰 크롤러 포트.

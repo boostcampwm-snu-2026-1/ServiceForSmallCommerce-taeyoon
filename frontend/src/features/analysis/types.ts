@@ -12,6 +12,7 @@ export interface ProductSummary {
   total_reviews: number;
   avg_rating: number;
   rating_distribution: Record<string, number>;
+  is_mine: boolean;
 }
 
 export interface Insights {
@@ -20,6 +21,7 @@ export interface Insights {
   improvement_points: { rank: number; title: string; detail: string }[];
   competitor_weaknesses: { title: string; opportunity: string }[];
   purchase_drivers: string[];
+  comparison_summary: string | null;
 }
 
 export interface AnalysisResult {
@@ -31,6 +33,7 @@ export interface Analysis {
   id: string;
   status: AnalysisStatus;
   urls: string[];
+  my_url: string | null;
   result: AnalysisResult | null;
   error: string | null;
   created_at: string;
@@ -39,7 +42,8 @@ export interface Analysis {
 
 // ── Request types ─────────────────────────────────────────────────────────────
 export interface CreateAnalysisRequest {
-  urls: string[];
+  my_url: string;
+  competitor_urls: string[];
   review_limit: number;
 }
 
@@ -51,7 +55,7 @@ export interface CreateAnalysisResponse {
 }
 
 export interface ListAnalysesResponse {
-  analyses: Pick<Analysis, 'id' | 'status' | 'urls' | 'created_at'>[];
+  analyses: Pick<Analysis, 'id' | 'status' | 'urls' | 'my_url' | 'created_at'>[];
   total: number;
   page: number;
   per_page: number;

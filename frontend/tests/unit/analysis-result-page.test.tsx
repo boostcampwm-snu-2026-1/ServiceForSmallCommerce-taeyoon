@@ -20,14 +20,24 @@ const completed: Analysis = {
   id: 'an-1',
   status: 'completed',
   urls: ['https://coupang.com/a'],
+  my_url: 'https://coupang.com/mine',
   result: {
     products: [
+      {
+        url: 'https://coupang.com/mine',
+        product_name: '내 청소기',
+        total_reviews: 100,
+        avg_rating: 4.5,
+        rating_distribution: { '1': 3, '2': 3, '3': 8, '4': 36, '5': 50 },
+        is_mine: true,
+      },
       {
         url: 'https://coupang.com/a',
         product_name: '무선 청소기',
         total_reviews: 120,
         avg_rating: 4.3,
         rating_distribution: { '1': 5, '2': 5, '3': 10, '4': 40, '5': 60 },
+        is_mine: false,
       },
     ],
     insights: {
@@ -40,6 +50,7 @@ const completed: Analysis = {
       ],
       competitor_weaknesses: [{ title: '느린 충전', opportunity: '고속 충전' }],
       purchase_drivers: ['가성비', '디자인'],
+      comparison_summary: '내 제품 평점이 경쟁사보다 높습니다.',
     },
   },
   error: null,
@@ -51,6 +62,7 @@ const pending: Analysis = {
   id: 'an-1',
   status: 'pending',
   urls: ['https://coupang.com/a'],
+  my_url: 'https://coupang.com/mine',
   result: null,
   error: null,
   created_at: '2026-06-07T00:00:00Z',

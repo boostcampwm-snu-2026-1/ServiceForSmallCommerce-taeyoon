@@ -19,7 +19,8 @@ use crate::http::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateAnalysisRequest {
-    pub urls: Vec<String>,
+    pub my_url: String,
+    pub competitor_urls: Vec<String>,
     pub review_limit: i32,
 }
 
@@ -35,6 +36,7 @@ pub struct CreateAnalysisResponse {
 pub struct AnalysisDetailView {
     pub id: Uuid,
     pub status: AnalysisStatus,
+    pub my_url: Option<String>,
     pub urls: Vec<String>,
     pub result: Option<AnalysisResult>,
     pub error: Option<String>,
@@ -47,6 +49,7 @@ impl From<Analysis> for AnalysisDetailView {
         AnalysisDetailView {
             id: a.id,
             status: a.status,
+            my_url: a.my_url,
             urls: a.urls,
             result: a.result,
             error: a.error,
@@ -61,6 +64,7 @@ impl From<Analysis> for AnalysisDetailView {
 pub struct AnalysisSummaryView {
     pub id: Uuid,
     pub status: AnalysisStatus,
+    pub my_url: Option<String>,
     pub urls: Vec<String>,
     pub created_at: DateTime<Utc>,
 }
@@ -70,6 +74,7 @@ impl From<Analysis> for AnalysisSummaryView {
         AnalysisSummaryView {
             id: a.id,
             status: a.status,
+            my_url: a.my_url,
             urls: a.urls,
             created_at: a.created_at,
         }
@@ -97,7 +102,7 @@ pub async fn create_analysis(
 ) -> Result<(StatusCode, Json<CreateAnalysisResponse>), AppError> {
     let analysis = state
         .analysis_service
-        .create_analysis(user_id, req.urls, req.review_limit)
+        .create_analysis(user_id, req.my_url, req.competitor_urls, req.review_limit)
         .await?;
     let body = CreateAnalysisResponse {
         analysis_id: analysis.id,

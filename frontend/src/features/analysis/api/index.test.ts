@@ -18,11 +18,12 @@ function mockFetch(body: unknown, ok = true, status = 200) {
 }
 
 describe('analysis api', () => {
-  it('createAnalysis posts urls and returns analysis id', async () => {
+  it('createAnalysis posts my_url and competitor urls and returns analysis id', async () => {
     mockFetch({ analysis_id: 'abc', status: 'pending', created_at: '2026-06-07' });
 
     const res = await createAnalysis({
-      urls: ['https://www.coupang.com/vp/products/1'],
+      my_url: 'https://www.coupang.com/vp/products/0',
+      competitor_urls: ['https://www.coupang.com/vp/products/1'],
       review_limit: 50,
     });
 

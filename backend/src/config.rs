@@ -31,8 +31,7 @@ impl Config {
             gemini_api_key: std::env::var("GEMINI_API_KEY").ok(),
             gemini_model: std::env::var("GEMINI_MODEL")
                 .unwrap_or_else(|_| "gemini-2.5-flash".to_string()),
-            crawler_mode: std::env::var("CRAWLER_MODE")
-                .unwrap_or_else(|_| "http".to_string()),
+            crawler_mode: std::env::var("CRAWLER_MODE").unwrap_or_else(|_| "http".to_string()),
             coupang_proxy_url: std::env::var("COUPANG_PROXY_URL")
                 .ok()
                 .filter(|s| !s.trim().is_empty()),

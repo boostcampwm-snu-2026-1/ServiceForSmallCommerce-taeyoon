@@ -8,9 +8,11 @@ use crate::error::AppResult;
 #[async_trait]
 pub trait AnalysisRepository: Send + Sync {
     /// 새 분석 작업을 status=pending 으로 생성한다.
+    /// `my_url` = 내 제품 URL, `urls` = 경쟁사 URL 목록.
     async fn create(
         &self,
         user_id: Uuid,
+        my_url: &str,
         urls: &[String],
         review_limit: i32,
     ) -> AppResult<Analysis>;

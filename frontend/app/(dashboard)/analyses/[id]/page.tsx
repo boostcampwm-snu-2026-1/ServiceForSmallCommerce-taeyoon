@@ -27,6 +27,12 @@ function formatCompletedAt(iso: string): string {
   return date.toLocaleString('ko-KR');
 }
 
+function averageRating(products: AnalysisResult['products']): number | null {
+  if (products.length === 0) return null;
+  const sum = products.reduce((acc, product) => acc + product.avg_rating, 0);
+  return Math.round((sum / products.length) * 10) / 10;
+}
+
 function ResultHeader({
   result,
   completedAt,
@@ -38,10 +44,31 @@ function ResultHeader({
     (sum, product) => sum + product.total_reviews,
     0,
   );
+  const myProducts = result.products.filter((p) => p.is_mine);
+  const competitorProducts = result.products.filter((p) => !p.is_mine);
+  const myAvg = averageRating(myProducts);
+  const competitorAvg = averageRating(competitorProducts);
+
   return (
     <div className="rounded-2xl bg-gradient-to-br from-brand-700 to-brand-900 p-6 text-white shadow-md">
       <p className="text-sm font-semibold text-brand-100">분석 완료</p>
-      <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-6">
+
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-xl bg-white/10 p-4 ring-1 ring-inset ring-white/15">
+          <p className="text-xs font-medium text-brand-100">내 제품 평균 평점</p>
+          <p className="mt-1 text-2xl font-bold leading-none sm:text-3xl">
+            {myAvg !== null ? myAvg : '—'}
+          </p>
+        </div>
+        <div className="rounded-xl bg-white/10 p-4 ring-1 ring-inset ring-white/15">
+          <p className="text-xs font-medium text-brand-100">경쟁사 평균 평점</p>
+          <p className="mt-1 text-2xl font-bold leading-none sm:text-3xl">
+            {competitorAvg !== null ? competitorAvg : '—'}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-3 sm:gap-6">
         <div className="min-w-0">
           <p className="text-2xl font-bold leading-none sm:text-3xl">
             {result.products.length}
