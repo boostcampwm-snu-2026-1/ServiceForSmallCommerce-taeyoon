@@ -282,8 +282,12 @@ impl AiAnalyzer for GeminiAiAnalyzer {
                 "parts": [{ "text": prompt }],
             }],
             "generationConfig": {
-                "maxOutputTokens": 4096,
+                // gemini-2.5-flash 는 thinking 모델이라 thinking 토큰이 출력 예산을
+                // 잠식해 JSON 이 잘릴 수 있다(EOF while parsing). 구조화 추출 작업이므로
+                // thinkingBudget=0 으로 thinking 을 끄고 출력 예산을 충분히 확보한다.
+                "maxOutputTokens": 8192,
                 "responseMimeType": "application/json",
+                "thinkingConfig": { "thinkingBudget": 0 },
             },
         });
 
