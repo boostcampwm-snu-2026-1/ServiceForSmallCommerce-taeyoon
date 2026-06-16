@@ -16,7 +16,7 @@
 2. `.claude/github-workflow.md` — **이슈 → 작업 → PR → Wiki** 작업 흐름 (필수)
 3. 관련 **GitHub Issue / PR** — 최근 작업 맥락 (`gh issue list`, `gh pr list`)
 4. **GitHub Wiki** — 현재 서비스/기술 스펙의 최종 현황 (canonical)
-5. 필요 시 `docs/decisions/` 세부 내용 참고
+5. 필요 시 `specification/` 스냅샷 참고 (최신본은 Wiki)
 
 ---
 
@@ -40,18 +40,18 @@
 | **스펙 (살아있는 현황)** | **GitHub Wiki** | canonical. 서비스/기술 스펙의 최종 현황 |
 | **작업 플랜** | **GitHub Issue** | 작업 시작 전 등록 (기존 `docs/plans` 대체) |
 | **작업 로그** | **GitHub PR** | `Closes #N` + PR 본문 (기존 `docs/works` 대체) |
-| 의사결정 (ADR) | `docs/decisions/YYYYMMDD-slug.md` | 레포 보존 (불변 기록) |
-| 세션 로그 | `docs/sessions/YYYYMMDD-HHMMSS.md` | 세션 종료 시 자동 생성, 레포 보존 |
+| 의사결정 (ADR) | **GitHub Wiki / PR** | 설계 판단은 PR 본문 + 해당 Wiki 페이지에 기록 |
+| 세션 로그 | **GitHub PR / Issue** | 작업 맥락은 PR/이슈가 담당 |
 
 > `specification/` 디렉터리는 Wiki 이관 이전의 스냅샷이다. **스펙의 최신본은 항상 Wiki를 본다.**
-> `docs/decisions/`, `docs/sessions/` 등 레포에 남은 문서는 **삭제하지 않는다** (WAL, append-only).
+> **로컬 `docs/` 는 더 이상 쌓지 않는다.** 모든 문서는 GitHub Issue/PR/Wiki가 canonical이며,
+> `docs/` 는 `.gitignore` 처리되어 커밋되지 않는다.
 
 ### 레포 디렉터리
 
 ```
 service-for-small-business-taeyoon/
 ├── specification/   # Wiki 이관 전 스냅샷 (최신본은 Wiki)
-├── docs/            # decisions/(ADR), sessions/(자동) — 레포 보존
 ├── backend/         # Rust 백엔드 코드
 ├── frontend/        # Next.js 프론트엔드 코드
 ├── .claude/         # 워크플로우 규칙 + 훅
@@ -68,7 +68,7 @@ service-for-small-business-taeyoon/
 | 프론트엔드 | Next.js 14 (TypeScript) + Tailwind + Zustand + TanStack Query |
 | 테스트 | cargo test + testcontainers + Vitest + Playwright + GitHub Actions CI |
 
-→ 상세: Wiki `Tech-Stack` 페이지 / 결정 이유: `docs/decisions/20260607-initial-tech-stack.md`
+→ 상세 및 결정 이유: Wiki `Tech-Stack` 페이지
 
 ---
 
@@ -103,5 +103,5 @@ cd frontend && npm run type-check && npm test -- --run
 세션 마무리 시 `/wrap` 스킬 실행:
 - 진행한 작업의 **PR 본문/이슈 코멘트** 정리 + 머지된 변경분 **Wiki 반영**
 - 변경된 스펙은 GitHub **Wiki** 해당 페이지 업데이트
-- 필요 시 ADR 작성 (`docs/decisions/`)
+- 의사결정(ADR)은 PR 본문 + 해당 **Wiki** 페이지에 기록 (로컬 `docs/` 미사용)
 - CLAUDE.md 업데이트

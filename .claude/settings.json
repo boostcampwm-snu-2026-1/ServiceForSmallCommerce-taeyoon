@@ -79,10 +79,6 @@
           },
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/session-doc-on-stop.sh\""
-          },
-          {
-            "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/coverage-check-fe.sh\""
           },
           {
