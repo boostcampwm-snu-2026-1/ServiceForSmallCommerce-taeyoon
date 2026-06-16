@@ -15,10 +15,12 @@ use crate::error::{AppError, AppResult};
 pub trait AnalysisService: Send + Sync {
     /// 분석 작업을 생성하고 백그라운드 파이프라인을 시작한다.
     /// 생성 시점의 (pending) Analysis 를 즉시 반환한다.
+    /// `my_url` = 내 제품 URL, `competitor_urls` = 경쟁 상품 URL 목록(1~3개).
     async fn create_analysis(
         &self,
         user_id: Uuid,
-        urls: Vec<String>,
+        my_url: String,
+        competitor_urls: Vec<String>,
         review_limit: i32,
     ) -> AppResult<Analysis>;
 
@@ -64,7 +66,8 @@ impl StandardAnalysisService {
         crawler: Arc<dyn CoupangCrawler>,
         analyzer: Arc<dyn AiAnalyzer>,
         id: Uuid,
-        urls: Vec<String>,
+        my_url: String,
+        competitor_urls: Vec<String>,
         review_limit: i32,
     ) {
         // 1. crawling
@@ -74,9 +77,25 @@ impl StandardAnalysisService {
             return;
         }
 
-        // 2. 각 url 크롤링
-        let mut product_reviews: Vec<ProductReviews> = Vec::with_capacity(urls.len());
-        for url in &urls {
+        // 2. 크롤링: 내 제품을 맨 앞으로, 그다음 경쟁사들.
+        let mut product_reviews: Vec<ProductReviews> =
+            Vec::with_capacity(1 + competitor_urls.len());
+
+        // 2-1. 내 제품 (is_mine = true)
+        match crawler.fetch_reviews(&my_url, review_limit as u32).await {
+            Ok(mut pr) => {
+                pr.is_mine = true;
+                product_reviews.push(pr);
+            }
+            Err(e) => {
+                tracing::error!(analysis_id = %id, url = %my_url, error = %e.detail(), "내 제품 크롤링 실패");
+                let _ = repo.set_error(id, &e.detail()).await;
+                return;
+            }
+        }
+
+        // 2-2. 경쟁사 (is_mine = false, 크롤러 기본값)
+        for url in &competitor_urls {
             match crawler.fetch_reviews(url, review_limit as u32).await {
                 Ok(pr) => product_reviews.push(pr),
                 Err(e) => {
@@ -143,6 +162,7 @@ impl StandardAnalysisService {
             total_reviews,
             avg_rating,
             rating_distribution,
+            is_mine: pr.is_mine,
         }
     }
 }
@@ -152,14 +172,22 @@ impl AnalysisService for StandardAnalysisService {
     async fn create_analysis(
         &self,
         user_id: Uuid,
-        urls: Vec<String>,
+        my_url: String,
+        competitor_urls: Vec<String>,
         review_limit: i32,
     ) -> AppResult<Analysis> {
         // 입력 검증 (플랜 제한 강제 없음).
-        if urls.is_empty() || urls.len() > 3 {
-            return Err(AppError::BadRequest("urls 는 1~3개여야 합니다".into()));
+        if my_url.trim().is_empty() {
+            return Err(AppError::BadRequest(
+                "my_url 은 비어 있을 수 없습니다".into(),
+            ));
         }
-        if urls.iter().any(|u| u.trim().is_empty()) {
+        if competitor_urls.is_empty() || competitor_urls.len() > 3 {
+            return Err(AppError::BadRequest(
+                "competitor_urls 는 1~3개여야 합니다".into(),
+            ));
+        }
+        if competitor_urls.iter().any(|u| u.trim().is_empty()) {
             return Err(AppError::BadRequest("빈 URL 은 허용되지 않습니다".into()));
         }
         if !(50..=500).contains(&review_limit) {
@@ -168,14 +196,26 @@ impl AnalysisService for StandardAnalysisService {
             ));
         }
 
-        let analysis = self.repo.create(user_id, &urls, review_limit).await?;
+        let analysis = self
+            .repo
+            .create(user_id, &my_url, &competitor_urls, review_limit)
+            .await?;
 
         let repo = Arc::clone(&self.repo);
         let crawler = Arc::clone(&self.crawler);
         let analyzer = Arc::clone(&self.analyzer);
         let id = analysis.id;
         tokio::spawn(async move {
-            Self::process_analysis(repo, crawler, analyzer, id, urls, review_limit).await;
+            Self::process_analysis(
+                repo,
+                crawler,
+                analyzer,
+                id,
+                my_url,
+                competitor_urls,
+                review_limit,
+            )
+            .await;
         });
 
         Ok(analysis)
@@ -202,8 +242,8 @@ impl AnalysisService for StandardAnalysisService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adapters::gemini::MockAiAnalyzer;
     use crate::adapters::coupang::MockCoupangCrawler;
+    use crate::adapters::gemini::MockAiAnalyzer;
     use crate::domain::models::{Analysis, Review};
     use chrono::Utc;
     use std::collections::HashMap;
@@ -220,12 +260,14 @@ mod tests {
         async fn create(
             &self,
             user_id: Uuid,
+            my_url: &str,
             urls: &[String],
             review_limit: i32,
         ) -> AppResult<Analysis> {
             let analysis = Analysis {
                 id: Uuid::new_v4(),
                 user_id,
+                my_url: Some(my_url.to_string()),
                 urls: urls.to_vec(),
                 review_limit,
                 status: AnalysisStatus::Pending,
@@ -321,14 +363,16 @@ mod tests {
     async fn process_analysis_completes_with_result() {
         let repo = Arc::new(MockAnalysisRepository::default());
         let user_id = Uuid::new_v4();
+        let my_url = "https://www.coupang.com/vp/products/0".to_string();
         let urls = vec!["https://www.coupang.com/vp/products/1".to_string()];
-        let created = repo.create(user_id, &urls, 100).await.unwrap();
+        let created = repo.create(user_id, &my_url, &urls, 100).await.unwrap();
 
         StandardAnalysisService::process_analysis(
             Arc::clone(&repo) as Arc<dyn AnalysisRepository>,
             Arc::new(MockCoupangCrawler::new()),
             Arc::new(MockAiAnalyzer::new()),
             created.id,
+            my_url,
             urls,
             100,
         )
@@ -340,20 +384,24 @@ mod tests {
         assert!(!result.products.is_empty());
         // MockAiAnalyzer 는 부정 리뷰가 있어 인사이트를 생성한다.
         assert!(!result.insights.top_complaints.is_empty());
+        // 맨 앞 product 는 내 제품이며 is_mine=true.
+        assert!(result.products[0].is_mine);
     }
 
     #[tokio::test]
     async fn process_analysis_marks_failed_on_crawler_error() {
         let repo = Arc::new(MockAnalysisRepository::default());
         let user_id = Uuid::new_v4();
+        let my_url = "https://www.coupang.com/vp/products/0".to_string();
         let urls = vec!["https://www.coupang.com/vp/products/1".to_string()];
-        let created = repo.create(user_id, &urls, 100).await.unwrap();
+        let created = repo.create(user_id, &my_url, &urls, 100).await.unwrap();
 
         StandardAnalysisService::process_analysis(
             Arc::clone(&repo) as Arc<dyn AnalysisRepository>,
             Arc::new(FailingCrawler),
             Arc::new(MockAiAnalyzer::new()),
             created.id,
+            my_url,
             urls,
             100,
         )
@@ -388,9 +436,11 @@ mod tests {
                     rating: 1,
                 },
             ],
+            is_mine: true,
         };
 
         let summary = StandardAnalysisService::aggregate_summary(&pr);
+        assert!(summary.is_mine);
         assert_eq!(summary.total_reviews, 4);
         assert_eq!(summary.avg_rating, (5 + 5 + 3 + 1) as f64 / 4.0);
         assert_eq!(summary.rating_distribution.get("5"), Some(&2));
@@ -406,6 +456,7 @@ mod tests {
             url: "u".into(),
             product_name: "p".into(),
             reviews: vec![],
+            is_mine: false,
         };
         let summary = StandardAnalysisService::aggregate_summary(&pr);
         assert_eq!(summary.total_reviews, 0);
@@ -418,13 +469,21 @@ mod tests {
         let repo = Arc::new(MockAnalysisRepository::default());
         let svc = service(Arc::clone(&repo), Arc::new(MockCoupangCrawler::new()));
         let user_id = Uuid::new_v4();
+        let my = "https://www.coupang.com/vp/products/0".to_string();
+        let one = vec!["https://www.coupang.com/vp/products/1".to_string()];
 
-        // urls 0개
+        // my_url 공백
         assert!(matches!(
-            svc.create_analysis(user_id, vec![], 100).await,
+            svc.create_analysis(user_id, "   ".to_string(), one.clone(), 100)
+                .await,
             Err(AppError::BadRequest(_))
         ));
-        // urls 4개
+        // competitor_urls 0개
+        assert!(matches!(
+            svc.create_analysis(user_id, my.clone(), vec![], 100).await,
+            Err(AppError::BadRequest(_))
+        ));
+        // competitor_urls 4개
         let four = vec![
             "https://www.coupang.com/vp/products/1".to_string(),
             "https://www.coupang.com/vp/products/2".to_string(),
@@ -432,27 +491,19 @@ mod tests {
             "https://www.coupang.com/vp/products/4".to_string(),
         ];
         assert!(matches!(
-            svc.create_analysis(user_id, four, 100).await,
+            svc.create_analysis(user_id, my.clone(), four, 100).await,
             Err(AppError::BadRequest(_))
         ));
         // review_limit 49
         assert!(matches!(
-            svc.create_analysis(
-                user_id,
-                vec!["https://www.coupang.com/vp/products/1".to_string()],
-                49
-            )
-            .await,
+            svc.create_analysis(user_id, my.clone(), one.clone(), 49)
+                .await,
             Err(AppError::BadRequest(_))
         ));
         // review_limit 501
         assert!(matches!(
-            svc.create_analysis(
-                user_id,
-                vec!["https://www.coupang.com/vp/products/1".to_string()],
-                501
-            )
-            .await,
+            svc.create_analysis(user_id, my.clone(), one.clone(), 501)
+                .await,
             Err(AppError::BadRequest(_))
         ));
     }
@@ -465,6 +516,7 @@ mod tests {
         let created = repo
             .create(
                 owner,
+                "https://www.coupang.com/vp/products/0",
                 &["https://www.coupang.com/vp/products/1".to_string()],
                 100,
             )

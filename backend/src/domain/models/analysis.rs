@@ -85,6 +85,9 @@ pub struct Insights {
     pub improvement_points: Vec<ImprovementPoint>,
     pub competitor_weaknesses: Vec<CompetitorWeakness>,
     pub purchase_drivers: Vec<String>,
+    /// 내 제품 vs 경쟁사 한줄 총평.
+    #[serde(default)]
+    pub comparison_summary: Option<String>,
 }
 
 /// 상품별 통계 요약 (리뷰에서 결정론적으로 집계).
@@ -95,6 +98,9 @@ pub struct ProductSummary {
     pub total_reviews: i32,
     pub avg_rating: f64,
     pub rating_distribution: HashMap<String, i32>,
+    /// 내 제품 여부.
+    #[serde(default)]
+    pub is_mine: bool,
 }
 
 /// 분석 결과 전체. DB 에 JSONB 로 저장된다.
@@ -109,6 +115,9 @@ pub struct AnalysisResult {
 pub struct Analysis {
     pub id: Uuid,
     pub user_id: Uuid,
+    /// 내 제품 URL.
+    pub my_url: Option<String>,
+    /// 경쟁사 상품 URL 목록.
     pub urls: Vec<String>,
     pub review_limit: i32,
     pub status: AnalysisStatus,

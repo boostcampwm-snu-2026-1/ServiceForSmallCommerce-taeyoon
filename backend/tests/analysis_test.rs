@@ -38,7 +38,7 @@ async fn create_poll_list_and_usage_flow() {
     let res = client
         .post(format!("{}/api/v1/analyses", app.address))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "urls": [PRODUCT_URL], "review_limit": 50 }))
+        .json(&serde_json::json!({ "my_url": PRODUCT_URL, "competitor_urls": [PRODUCT_URL], "review_limit": 50 }))
         .send()
         .await
         .expect("create analysis failed");
@@ -58,6 +58,9 @@ async fn create_poll_list_and_usage_flow() {
         .expect("products should be an array");
     assert!(!products.is_empty());
     assert!(detail["result"]["insights"].is_object());
+    // my_url 노출 + products[].is_mine 존재 확인
+    assert!(detail["my_url"].is_string());
+    assert!(products[0]["is_mine"].is_boolean());
     // 노출 금지 필드 확인
     assert!(detail["user_id"].is_null());
     assert!(detail["review_limit"].is_null());
@@ -95,7 +98,7 @@ async fn create_without_token_returns_401() {
     let app = TestApp::spawn().await;
     let res = reqwest::Client::new()
         .post(format!("{}/api/v1/analyses", app.address))
-        .json(&serde_json::json!({ "urls": [PRODUCT_URL], "review_limit": 100 }))
+        .json(&serde_json::json!({ "my_url": PRODUCT_URL, "competitor_urls": [PRODUCT_URL], "review_limit": 100 }))
         .send()
         .await
         .expect("request failed");
@@ -110,22 +113,23 @@ async fn create_with_invalid_urls_returns_400() {
         .await;
     let client = reqwest::Client::new();
 
-    // 0개
+    // competitor_urls 0개
     let res = client
         .post(format!("{}/api/v1/analyses", app.address))
         .bearer_auth(&token)
-        .json(&serde_json::json!({ "urls": [], "review_limit": 100 }))
+        .json(&serde_json::json!({ "my_url": PRODUCT_URL, "competitor_urls": [], "review_limit": 100 }))
         .send()
         .await
         .expect("request failed");
     assert_eq!(res.status(), 400);
 
-    // 4개
+    // competitor_urls 4개
     let res = client
         .post(format!("{}/api/v1/analyses", app.address))
         .bearer_auth(&token)
         .json(&serde_json::json!({
-            "urls": [PRODUCT_URL, PRODUCT_URL, PRODUCT_URL, PRODUCT_URL],
+            "my_url": PRODUCT_URL,
+            "competitor_urls": [PRODUCT_URL, PRODUCT_URL, PRODUCT_URL, PRODUCT_URL],
             "review_limit": 100
         }))
         .send()
@@ -145,7 +149,7 @@ async fn other_user_cannot_access_analysis() {
     let res = client
         .post(format!("{}/api/v1/analyses", app.address))
         .bearer_auth(&owner_token)
-        .json(&serde_json::json!({ "urls": [PRODUCT_URL], "review_limit": 100 }))
+        .json(&serde_json::json!({ "my_url": PRODUCT_URL, "competitor_urls": [PRODUCT_URL], "review_limit": 100 }))
         .send()
         .await
         .expect("create failed");

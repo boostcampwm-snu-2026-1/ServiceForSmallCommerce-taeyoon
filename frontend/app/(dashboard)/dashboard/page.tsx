@@ -18,11 +18,19 @@ export default function DashboardPage() {
     queryFn: () => listAnalyses(),
   });
 
-  async function handleSubmit(urls: string[], reviewLimit: number) {
+  async function handleSubmit(
+    myUrl: string,
+    competitorUrls: string[],
+    reviewLimit: number,
+  ) {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await createAnalysis({ urls, review_limit: reviewLimit });
+      const res = await createAnalysis({
+        my_url: myUrl,
+        competitor_urls: competitorUrls,
+        review_limit: reviewLimit,
+      });
       router.push(`/analyses/${res.analysis_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : '분석 생성에 실패했습니다.');
@@ -52,10 +60,10 @@ export default function DashboardPage() {
               <path d="m21 21-4.3-4.3" />
             </svg>
           </span>
-          <h1 className="text-xl font-bold text-white sm:text-2xl">경쟁 상품 분석</h1>
+          <h1 className="text-xl font-bold text-white sm:text-2xl">내 제품 vs 경쟁 상품 분석</h1>
         </div>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-brand-100">
-          경쟁 상품의 쿠팡 URL을 입력하면 AI가 리뷰를 분석해 개선 포인트를 알려드립니다.
+          내 제품과 경쟁 상품의 쿠팡 URL을 입력하면 AI가 리뷰를 비교해 내 제품의 개선점을 알려드립니다.
         </p>
         <div className="mt-5 rounded-xl bg-white p-5 shadow-sm sm:p-6">
           <UrlInput onSubmit={handleSubmit} loading={submitting} />
@@ -77,7 +85,7 @@ export default function DashboardPage() {
         ) : analyses.length === 0 ? (
           <EmptyState
             title="아직 분석 기록이 없습니다."
-            description="위에서 경쟁 상품 URL을 입력해 첫 분석을 시작해 보세요."
+            description="위에서 내 제품과 경쟁 상품 URL을 입력해 첫 분석을 시작해 보세요."
           />
         ) : (
           <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">

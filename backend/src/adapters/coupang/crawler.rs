@@ -67,6 +67,7 @@ impl CoupangCrawler for MockCoupangCrawler {
             url: url.to_string(),
             product_name: Self::product_name_for(url),
             reviews,
+            is_mine: false,
         })
     }
 }
@@ -101,9 +102,7 @@ impl HttpCoupangCrawler {
     /// 없으면 타겟 URL 을 그대로 반환(직접 호출).
     pub fn resolve_request_url(&self, target: &str) -> String {
         match &self.proxy_url {
-            Some(tmpl) if tmpl.contains("{url}") => {
-                tmpl.replace("{url}", &percent_encode(target))
-            }
+            Some(tmpl) if tmpl.contains("{url}") => tmpl.replace("{url}", &percent_encode(target)),
             // 템플릿에 {url} 가 없으면 쿼리로 덧붙인다(?url= 또는 &url=).
             Some(tmpl) => {
                 let sep = if tmpl.contains('?') { '&' } else { '?' };
@@ -142,7 +141,14 @@ impl HttpCoupangCrawler {
                 return r;
             }
         }
-        for k in ["reviews", "data", "content", "reviewList", "items", "contents"] {
+        for k in [
+            "reviews",
+            "data",
+            "content",
+            "reviewList",
+            "items",
+            "contents",
+        ] {
             if let Some(arr) = json.get(k).and_then(|v| v.as_array()) {
                 let r: Vec<Review> = arr.iter().filter_map(Self::parse_one_review).collect();
                 if !r.is_empty() {
@@ -262,7 +268,10 @@ impl CoupangCrawler for HttpCoupangCrawler {
             .client
             .get(&request_url)
             .header("User-Agent", USER_AGENT)
-            .header("Referer", format!("https://www.coupang.com/vp/products/{product_id}"))
+            .header(
+                "Referer",
+                format!("https://www.coupang.com/vp/products/{product_id}"),
+            )
             .header("Accept", "application/json, text/plain, */*")
             .header("Accept-Language", "ko-KR,ko;q=0.9,en;q=0.8")
             .header("sec-fetch-dest", "empty")
@@ -295,13 +304,14 @@ impl CoupangCrawler for HttpCoupangCrawler {
         let mut reviews = Self::parse_reviews(&json);
         reviews.truncate(limit as usize);
 
-        let product_name = Self::find_product_name(&json)
-            .unwrap_or_else(|| format!("쿠팡 상품 {product_id}"));
+        let product_name =
+            Self::find_product_name(&json).unwrap_or_else(|| format!("쿠팡 상품 {product_id}"));
 
         Ok(ProductReviews {
             url: url.to_string(),
             product_name,
             reviews,
+            is_mine: false,
         })
     }
 }
@@ -412,7 +422,8 @@ mod tests {
             reqwest::Client::new(),
             Some("https://api.scraperapi.com/?api_key=KEY&url={url}".into()),
         );
-        let out = c.resolve_request_url("https://www.coupang.com/next-api/review?productId=1&size=2");
+        let out =
+            c.resolve_request_url("https://www.coupang.com/next-api/review?productId=1&size=2");
         assert!(out.starts_with("https://api.scraperapi.com/?api_key=KEY&url="));
         // 타겟 URL 은 percent-encode 되어야 한다(콜론/슬래시/물음표/앰퍼샌드).
         assert!(out.contains("https%3A%2F%2Fwww.coupang.com"));

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use coupang_review_ai_backend::{
-    adapters::gemini::{GeminiAiAnalyzer, MockAiAnalyzer},
     adapters::coupang::{HttpCoupangCrawler, MockCoupangCrawler},
+    adapters::gemini::{GeminiAiAnalyzer, MockAiAnalyzer},
     adapters::postgres::{analysis_repo::PgAnalysisRepository, user_repo::PgUserRepository},
     application::analysis_service::{AnalysisService, StandardAnalysisService},
     application::auth_service::{AuthService, StandardAuthService},
