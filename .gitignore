@@ -1,8 +1,10 @@
 # Claude Code hook markers
-.claude/.pending-doc-check
 .claude/.pending-rust-check
 .claude/.pending-spec-check
-.claude/.plan-exists
+.claude/.pending-fe-check
+
+# 로컬 문서는 더 이상 누적하지 않는다 (GitHub Issue/PR/Wiki가 canonical)
+docs/
 
 # Claude Code local settings
 .claude/settings.local.json
